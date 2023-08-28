@@ -1,0 +1,12 @@
+[package]
+name = "fcaptcha-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.3.1"
+base64 = "0.21.3"
+hex = "0.4.3"
+hmac-sha256 = "1.1.7"
+lazy_static = "1.4.0"
+rand = "0.8.5"
