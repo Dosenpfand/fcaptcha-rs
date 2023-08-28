@@ -47,9 +47,11 @@ async fn build_puzzle_service(req: HttpRequest) -> impl Responder {
 fn get_scaling(access_count: u64) -> (u8, u8) {
     if access_count > 20 {
         (45, 149)
-    }
-    // TODO: other vals
-    else {
+    } else if access_count > 10 {
+        (45, 141)
+    } else if access_count > 4 {
+        (51, 130)
+    } else {
         (51, 122)
     }
 }
