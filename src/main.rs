@@ -10,6 +10,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
+use std::str;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
@@ -32,10 +33,16 @@ struct BuildPuzzleServiceResult {
 lazy_static! {
     static ref IP_ADDRESS_TO_ACCESS_MAP: Mutex<HashMap<String, Access>> =
         Mutex::new(HashMap::new());
+    static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<String, u64>> =
+        Mutex::new(HashMap::new());
     static ref SECRET_KEY: String =
         env::var("SECRET_KEY").unwrap_or(String::from("NOT-A-SECRET-KEY"));
     static ref ACCESS_TTL: u64 = env::var("ACCESS_TTL")
         .unwrap_or(String::from("1800"))
+        .parse::<u64>()
+        .unwrap();
+    static ref PUZZLE_TTL: u64 = env::var("PUZZLE_TTL")
+        .unwrap_or(String::from("3600"))
         .parse::<u64>()
         .unwrap();
 }
@@ -140,4 +147,49 @@ fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     );
 
     puzzle
+}
+
+fn is_puzzle_valid(solution: &str, key: &[u8]) -> bool {
+    let solution_parts: Vec<&str> = solution.splitn(4, ".").collect();
+    let signature = solution_parts[0];
+    let mut puzzle: [u8; 32] = [0; 32];
+    general_purpose::STANDARD
+        .decode_slice(solution_parts[1], &mut puzzle)
+        .unwrap();
+
+    let calc_signature = hex::encode(HMAC::mac(puzzle, key));
+
+    if calc_signature != signature {
+        info!(
+            "Signature mismatch, received: {:?}, calculated: {:?}",
+            signature, calc_signature
+        );
+        return false;
+    }
+
+    let current_timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let puzzle_option = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP
+        .lock()
+        .unwrap()
+        .get(str::from_utf8(&puzzle).unwrap());
+
+    // TODO: here
+    // match puzzle_option {
+    //     Some(timestamp) => {
+    //         if current_timestamp - timestamp < *PUZZLE_TTL {
+    //             info!("Puzzle reuse with {:?}", puzzle);
+    //             return false
+    //         }
+    //     },
+    //     None => todo!(),
+    // }
+
+    let solutions = solution_parts[2];
+    let diagnostics = solution_parts[3];
+
+    true
 }
