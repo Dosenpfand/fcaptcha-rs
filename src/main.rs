@@ -9,11 +9,21 @@ use std::env;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
+#[derive(Clone, Debug)]
+struct Access {
+    count: u64,
+    last_access: u64,
+}
+
 lazy_static! {
-    static ref IP_ADDRESS_TO_ACCESS_COUNT_MAP: Mutex<HashMap<String, u64>> =
+    static ref IP_ADDRESS_TO_ACCESS_MAP: Mutex<HashMap<String, Access>> =
         Mutex::new(HashMap::new());
     static ref SECRET_KEY: String =
         env::var("SECRET_KEY").unwrap_or(String::from("NOT-A-SECRET-KEY"));
+    static ref ACCESS_TTL: u64 = env::var("SECRET_KEY")
+        .unwrap_or(String::from("1800"))
+        .parse::<u64>()
+        .unwrap();
 }
 
 #[actix_web::main]
@@ -50,15 +60,25 @@ fn build_puzzle(key: &[u8], ip_address: &str) -> String {
         .unwrap()
         .as_secs();
 
-    let access_count = IP_ADDRESS_TO_ACCESS_COUNT_MAP
+    let access = IP_ADDRESS_TO_ACCESS_MAP
         .lock()
         .unwrap()
         .entry(ip_address.to_string())
-        .and_modify(|count| *count += 1)
-        .or_insert(1)
+        .and_modify(|access| {
+            if timestamp - access.last_access > *ACCESS_TTL {
+                access.count = 1;
+            } else {
+                access.count += 1;
+            }
+            access.last_access = timestamp;
+        })
+        .or_insert(Access {
+            count: 1,
+            last_access: timestamp,
+        })
         .clone();
 
-    let (count_solutions, difficulty) = get_scaling(access_count);
+    let (count_solutions, difficulty) = get_scaling(access.count);
     let timestamp_truncated: u32 = timestamp.try_into().unwrap();
     let account_id: u32 = 1;
     let app_id: u32 = 1;
