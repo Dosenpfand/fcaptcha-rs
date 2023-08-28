@@ -53,7 +53,7 @@ async fn main() -> std::io::Result<()> {
 async fn build_puzzle_service(req: HttpRequest) -> impl Responder {
     let con_info = req.connection_info();
     let resp_text = build_puzzle(
-        &SECRET_KEY.as_bytes(),
+        SECRET_KEY.as_bytes(),
         con_info.realip_remote_addr().unwrap(),
     );
     Ok::<web::Json<BuildPuzzleServiceResult>, Box<dyn Error>>(web::Json(BuildPuzzleServiceResult {
