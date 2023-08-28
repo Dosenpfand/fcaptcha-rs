@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
 
 use actix_web::{get, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use base64::{engine::general_purpose, Engine as _};
@@ -20,7 +22,7 @@ lazy_static! {
         Mutex::new(HashMap::new());
     static ref SECRET_KEY: String =
         env::var("SECRET_KEY").unwrap_or(String::from("NOT-A-SECRET-KEY"));
-    static ref ACCESS_TTL: u64 = env::var("SECRET_KEY")
+    static ref ACCESS_TTL: u64 = env::var("ACCESS_TTL")
         .unwrap_or(String::from("1800"))
         .parse::<u64>()
         .unwrap();
@@ -28,6 +30,7 @@ lazy_static! {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::init();
     HttpServer::new(|| App::new().service(build_puzzle_service))
         .bind(("127.0.0.1", 8080))?
         .run()
@@ -81,6 +84,10 @@ fn build_puzzle(key: &[u8], ip_address: &str) -> String {
         .clone();
 
     let (count_solutions, difficulty) = get_scaling(access.count);
+
+    info!("Creating puzzle for ip_address: {:?}, timestamp: {:?}, access: {:?}, count_solutions: {:?}, difficulty: {:?}",
+        ip_address, timestamp, access, count_solutions, difficulty);
+
     let timestamp_truncated: u32 = timestamp.try_into().unwrap();
     let account_id: u32 = 1;
     let app_id: u32 = 1;
