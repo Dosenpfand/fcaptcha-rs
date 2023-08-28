@@ -3,11 +3,13 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
-use actix_web::{get, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{get, web, App, HttpRequest, HttpServer, Responder};
 use base64::{engine::general_purpose, Engine as _};
 use hmac_sha256::HMAC;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
+use std::error::Error;
 use std::sync::Mutex;
 use std::time::SystemTime;
 
@@ -15,6 +17,16 @@ use std::time::SystemTime;
 struct Access {
     count: u64,
     last_access: u64,
+}
+
+#[derive(Serialize)]
+struct BuildPuzzleServiceResultData {
+    puzzle: String,
+}
+
+#[derive(Serialize)]
+struct BuildPuzzleServiceResult {
+    data: BuildPuzzleServiceResultData,
 }
 
 lazy_static! {
@@ -44,7 +56,9 @@ async fn build_puzzle_service(req: HttpRequest) -> impl Responder {
         &SECRET_KEY.as_bytes(),
         con_info.realip_remote_addr().unwrap(),
     );
-    HttpResponse::Ok().body(resp_text)
+    Ok::<web::Json<BuildPuzzleServiceResult>, Box<dyn Error>>(web::Json(BuildPuzzleServiceResult {
+        data: BuildPuzzleServiceResultData { puzzle: resp_text },
+    }))
 }
 
 fn get_scaling(access_count: u64) -> (u8, u8) {

@@ -457,6 +457,7 @@ dependencies = [
  "lazy_static",
  "log",
  "rand",
+ "serde",
 ]
 
 [[package]]
