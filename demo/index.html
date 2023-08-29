@@ -1,0 +1,24 @@
+<html>
+
+<head>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/friendly-challenge@0.9.12/widget.module.min.js" async
+        defer></script>
+    <script nomodule src="https://cdn.jsdelivr.net/npm/friendly-challenge@0.9.12/widget.min.js" async defer></script>
+</head>
+
+<body>
+    <form action="/demo-form" method="post">
+        <div>
+            <label for="name">Enter arbitrary text: </label>
+            <input type="text" name="name" id="name" required />
+        </div>
+        <div class="frc-captcha" data-sitekey="TODO-SITEKEY" data-puzzle-endpoint="http://localhost:8080/build-puzzle">
+        </div>
+        <div>
+            <input type="submit" value="Submit!" />
+        </div>
+
+    </form>
+</body>
+
+</html>

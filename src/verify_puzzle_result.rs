@@ -9,13 +9,16 @@ use std::time::SystemTime;
 
 lazy_static! {
     // TODO: Empty maps periodically!
-    static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<String, u64>> =
+    static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<Vec<u8>, u64>> =
         Mutex::new(HashMap::new());
     static ref API_KEY: String = env::var("API_KEY").unwrap_or(String::from("NOT-AN-API-KEY"));
     static ref PUZZLE_TTL: u64 = env::var("PUZZLE_TTL")
         .unwrap_or(String::from("3600"))
         .parse::<u64>()
         .unwrap();
+    // TODO: Duplicated in web.rs
+    static ref SECRET_KEY: String =
+        env::var("SECRET_KEY").unwrap_or(String::from("NOT-A-SECRET-KEY"));
 }
 
 pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
@@ -26,11 +29,15 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
     let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
     let signature = solution_parts[0];
     let mut puzzle: [u8; 32] = [0; 32];
+
+    info!("Trying to decode puzzle: {:?}", solution_parts[1]);
+    // TODO: Switch back to checked version?
+    // But needs 2 additional bytes: https://docs.rs/base64/latest/base64/fn.decoded_len_estimate.html
     general_purpose::STANDARD
-        .decode_slice(solution_parts[1], &mut puzzle)
+        .decode_slice_unchecked(solution_parts[1], &mut puzzle)
         .unwrap();
 
-    let calc_signature = hex::encode(HMAC::mac(puzzle, key));
+    let calc_signature = hex::encode(HMAC::mac(puzzle, SECRET_KEY.as_str()));
 
     if calc_signature != signature {
         info!(
@@ -49,7 +56,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
     {
         let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();
 
-        let puzzle_option = map.get_mut(str::from_utf8(&puzzle).unwrap());
+        let puzzle_option = map.get_mut(&puzzle.to_vec());
 
         match puzzle_option {
             Some(timestamp) => {
@@ -64,7 +71,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
             None => {
                 info!("New puzzle with: {:?}", puzzle);
                 map.insert(
-                    String::from_utf8_lossy(&puzzle).to_string(),
+                    puzzle.to_vec(),
                     current_timestamp,
                 );
             }
@@ -102,7 +109,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
         seen_solutions.insert(current_solution);
 
         let mut full_solution: [u8; 128] = [0; 128];
-        full_solution.copy_from_slice(&puzzle);
+        full_solution[0..32].copy_from_slice(&puzzle);
         full_solution[120..128].copy_from_slice(current_solution);
         info!("Full solution: {:?}", full_solution);
 
