@@ -45,7 +45,6 @@ struct FormInput {
     frc_captcha_solution: String,
 }
 
-// TODO: Merge with function for JSON!
 #[post("/demo-form")]
 async fn demo_form(web::Form(input): web::Form<FormInput>) -> String {
     info!(
