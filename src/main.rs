@@ -3,10 +3,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
-use actix_web::{get, web, App, HttpRequest, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpRequest, HttpServer, Responder};
 use base64::{engine::general_purpose, Engine as _};
 use hmac_sha256::HMAC;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -21,13 +21,25 @@ struct Access {
 }
 
 #[derive(Serialize)]
-struct BuildPuzzleServiceResultData {
+struct BuildPuzzleServiceOutputData {
     puzzle: String,
 }
 
 #[derive(Serialize)]
-struct BuildPuzzleServiceResult {
-    data: BuildPuzzleServiceResultData,
+struct BuildPuzzleServiceOutput {
+    data: BuildPuzzleServiceOutputData,
+}
+
+#[derive(Deserialize, Debug)]
+struct VerifyPuzzleResultServiceInput {
+    solution: String,
+    secret: String,
+}
+
+#[derive(Serialize)]
+struct VerfifyPuzzleResultServiceOutput {
+    success: bool,
+    errors: Option<String>,
 }
 
 lazy_static! {
@@ -50,10 +62,14 @@ lazy_static! {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    HttpServer::new(|| App::new().service(build_puzzle_service))
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+    HttpServer::new(|| {
+        App::new()
+            .service(build_puzzle_service)
+            .service(verify_puzzle_result_service)
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
 
 #[get("/build-puzzle")]
@@ -63,11 +79,25 @@ async fn build_puzzle_service(req: HttpRequest) -> impl Responder {
         SECRET_KEY.as_bytes(),
         con_info.realip_remote_addr().unwrap(),
     );
-    Ok::<web::Json<BuildPuzzleServiceResult>, Box<dyn Error>>(web::Json(BuildPuzzleServiceResult {
-        data: BuildPuzzleServiceResultData { puzzle: resp_text },
+    Ok::<web::Json<BuildPuzzleServiceOutput>, Box<dyn Error>>(web::Json(BuildPuzzleServiceOutput {
+        data: BuildPuzzleServiceOutputData { puzzle: resp_text },
     }))
 }
 
+#[post("/verify-puzzle-result")]
+async fn verify_puzzle_result_service(
+    input: web::Json<VerifyPuzzleResultServiceInput>,
+) -> impl Responder {
+    info!("Got verify request with {:?}", input);
+    Ok::<web::Json<VerfifyPuzzleResultServiceOutput>, Box<dyn Error>>(web::Json(
+        VerfifyPuzzleResultServiceOutput {
+            success: false,
+            errors: Some(String::from("TEMP!")),
+        },
+    ))
+}
+
+// TODO: use proper types
 fn get_scaling(access_count: u64) -> (u8, u8) {
     if access_count > 20 {
         (45, 149)
@@ -149,7 +179,7 @@ fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     puzzle
 }
 
-fn is_puzzle_valid(solution: &str, key: &[u8]) -> bool {
+fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
     let solution_parts: Vec<&str> = solution.splitn(4, ".").collect();
     let signature = solution_parts[0];
     let mut puzzle: [u8; 32] = [0; 32];
@@ -172,21 +202,31 @@ fn is_puzzle_valid(solution: &str, key: &[u8]) -> bool {
         .unwrap()
         .as_secs();
 
-    let puzzle_option = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP
-        .lock()
-        .unwrap()
-        .get(str::from_utf8(&puzzle).unwrap());
+    // TODO: Refactor, improve, maybe use entry()?
+    {
+        let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();
 
-    // TODO: here
-    // match puzzle_option {
-    //     Some(timestamp) => {
-    //         if current_timestamp - timestamp < *PUZZLE_TTL {
-    //             info!("Puzzle reuse with {:?}", puzzle);
-    //             return false
-    //         }
-    //     },
-    //     None => todo!(),
-    // }
+        let puzzle_option = map.get_mut(str::from_utf8(&puzzle).unwrap());
+
+        match puzzle_option {
+            Some(timestamp) => {
+                if current_timestamp - *timestamp < *PUZZLE_TTL {
+                    info!("Puzzle reuse with: {:?}", puzzle);
+                    return false;
+                } else {
+                    info!("Expired puzzle reuse with: {:?}", puzzle);
+                    *timestamp = current_timestamp;
+                }
+            }
+            None => {
+                info!("New puzzle with: {:?}", puzzle);
+                map.insert(
+                    String::from_utf8_lossy(&puzzle).to_string(),
+                    current_timestamp,
+                );
+            }
+        }
+    }
 
     let solutions = solution_parts[2];
     let diagnostics = solution_parts[3];
