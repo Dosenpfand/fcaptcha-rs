@@ -48,10 +48,16 @@ struct FormInput {
 // TODO: Merge with function for JSON!
 #[post("/demo-form")]
 async fn demo_form(web::Form(input): web::Form<FormInput>) -> String {
-    info!("Got puzzle result verify request with {:?}", input);
+    info!(
+        "Got puzzle result verify request with name: {:?} and captcha solution: {:?}",
+        input.name, input.frc_captcha_solution
+    );
 
     // TODO: Instead of calling directly, post JSON over HTTP?
     let api_key: String = env::var("API_KEY").unwrap_or(String::from("NOT-AN-API-KEY"));
     let is_valid = is_puzzle_result_valid(&input.frc_captcha_solution, api_key.as_bytes());
-    format!("Got: {:?}, result for captcha validation:{:?}", input, is_valid)
+    format!(
+        "Got: {:?}, result for captcha validation:{:?}",
+        input, is_valid
+    )
 }
