@@ -4,12 +4,19 @@ use actix_cors::Cors;
 use actix_web::{
     get, http::StatusCode, post, web, App, Error, HttpResponse, HttpServer, Responder,
 };
-use fcaptcha_rs::{
+use fcaptcha::{
     is_puzzle_result_valid,
     web::{build_puzzle_service, verify_puzzle_result_service},
 };
 use log::info;
 use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+struct FormInput {
+    name: String,
+    #[serde(rename = "frc-captcha-solution")]
+    frc_captcha_solution: String,
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -36,13 +43,6 @@ async fn index() -> impl Responder {
             .content_type("text/html; charset=utf-8")
             .body(include_str!("../demo/index.html")),
     )
-}
-
-#[derive(Deserialize, Debug)]
-struct FormInput {
-    name: String,
-    #[serde(rename = "frc-captcha-solution")]
-    frc_captcha_solution: String,
 }
 
 #[post("/demo-form")]

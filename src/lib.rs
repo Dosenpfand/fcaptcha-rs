@@ -10,4 +10,6 @@ pub use crate::web::{build_puzzle_service, verify_puzzle_result_service};
 
 pub mod build_puzzle;
 pub mod verify_puzzle_result;
+
+#[cfg(feature = "web")]
 pub mod web;

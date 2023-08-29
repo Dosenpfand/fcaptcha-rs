@@ -3,6 +3,18 @@ name = "fcaptcha-rs"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "fcaptcha"
+path = "src/lib.rs"
+
+[[bin]]
+name = "demo"
+path = "demo/main.rs"
+
+[features]
+default = ["web"]
+web = []
+
 [dependencies]
 actix-web = "4.3.1"
 base64 = "0.21.3"
