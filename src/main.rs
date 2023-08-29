@@ -5,9 +5,10 @@ extern crate log;
 
 use actix_web::{get, post, web, App, HttpRequest, HttpServer, Responder};
 use base64::{engine::general_purpose, Engine as _};
+use blake2::{digest::consts::U32, Blake2b, Digest};
 use hmac_sha256::HMAC;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::error::Error;
 use std::str;
@@ -37,18 +38,20 @@ struct VerifyPuzzleResultServiceInput {
 }
 
 #[derive(Serialize)]
-struct VerfifyPuzzleResultServiceOutput {
+struct VerifyPuzzleResultServiceOutput {
     success: bool,
     errors: Option<String>,
 }
 
 lazy_static! {
+    // TODO: Empty maps periodically!
     static ref IP_ADDRESS_TO_ACCESS_MAP: Mutex<HashMap<String, Access>> =
         Mutex::new(HashMap::new());
     static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<String, u64>> =
         Mutex::new(HashMap::new());
     static ref SECRET_KEY: String =
         env::var("SECRET_KEY").unwrap_or(String::from("NOT-A-SECRET-KEY"));
+    static ref API_KEY: String = env::var("API_KEY").unwrap_or(String::from("NOT-AN-API-KEY"));
     static ref ACCESS_TTL: u64 = env::var("ACCESS_TTL")
         .unwrap_or(String::from("1800"))
         .parse::<u64>()
@@ -88,11 +91,14 @@ async fn build_puzzle_service(req: HttpRequest) -> impl Responder {
 async fn verify_puzzle_result_service(
     input: web::Json<VerifyPuzzleResultServiceInput>,
 ) -> impl Responder {
-    info!("Got verify request with {:?}", input);
-    Ok::<web::Json<VerfifyPuzzleResultServiceOutput>, Box<dyn Error>>(web::Json(
-        VerfifyPuzzleResultServiceOutput {
-            success: false,
-            errors: Some(String::from("TEMP!")),
+    info!("Got puzzle result verify request with {:?}", input);
+
+    let is_valid = is_puzzle_result_valid(&input.solution, input.secret.as_bytes());
+
+    Ok::<web::Json<VerifyPuzzleResultServiceOutput>, Box<dyn Error>>(web::Json(
+        VerifyPuzzleResultServiceOutput {
+            success: is_valid,
+            errors: None, // TODO: Expand error case
         },
     ))
 }
@@ -180,7 +186,11 @@ fn build_puzzle(key: &[u8], ip_address: &str) -> String {
 }
 
 fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
-    let solution_parts: Vec<&str> = solution.splitn(4, ".").collect();
+    if str::from_utf8(key).unwrap() != *API_KEY {
+        return false;
+    }
+
+    let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
     let signature = solution_parts[0];
     let mut puzzle: [u8; 32] = [0; 32];
     general_purpose::STANDARD
@@ -228,8 +238,62 @@ fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
         }
     }
 
-    let solutions = solution_parts[2];
-    let diagnostics = solution_parts[3];
+    let solutions_count = puzzle[14];
+    let timestamp_received = u32::from_be_bytes(puzzle[0..4].try_into().unwrap());
+    let age: u64 = current_timestamp - u64::from(timestamp_received);
+    let expiry: u32 = u32::from(puzzle[13]) * 300;
 
+    let solutions = general_purpose::STANDARD.decode(solution_parts[2]).unwrap();
+
+    let _diagnostics = solution_parts[3];
+    // TODO: log diagnostics
+
+    if (expiry != 0) && (age > u64::from(expiry)) {
+        info!("Expired puzzle, age: {:?}, expiry: {:?}", age, expiry);
+        return false;
+    }
+
+    let difficulty = puzzle[15];
+    // TODO: Why use floats?
+    let threshold: u32 = (2_f32.powf(255.999 - f32::from(difficulty)) / 8_f32).floor() as u32;
+    let mut seen_solutions = HashSet::<&[u8]>::new();
+
+    for solution_idx in 0..solutions_count {
+        let current_start_idx = usize::from(solution_idx);
+        let current_solution = &solutions[current_start_idx..current_start_idx + 8];
+
+        if seen_solutions.contains(current_solution) {
+            info!("Duplicate solution found: {:?}", current_solution);
+            return false;
+        }
+        seen_solutions.insert(current_solution);
+
+        let mut full_solution: [u8; 128] = [0; 128];
+        full_solution.copy_from_slice(&puzzle);
+        full_solution[120..128].copy_from_slice(current_solution);
+        info!("Full solution: {:?}", full_solution);
+
+        type Blake2b256 = Blake2b<U32>;
+        let mut hasher = Blake2b256::new();
+        hasher.update(full_solution);
+        let hash = hasher.finalize();
+        info!("Solution hash: {:?}", full_solution);
+
+        let solution_leading = u32::from_le_bytes(hash[0..4].try_into().unwrap());
+
+        if solution_leading >= threshold {
+            info!(
+                "Found invalid solution not below threshold: {:?} >= {:?}",
+                solution_leading, threshold
+            );
+            return false;
+        }
+        info!(
+            "Found one valid solution below threshold: {:?} < {:?}",
+            solution_leading, threshold
+        );
+    }
+
+    info!("Puzzle solutions verified successfully for: {:?}", solution);
     true
 }
