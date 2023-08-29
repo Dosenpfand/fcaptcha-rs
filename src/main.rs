@@ -1,4 +1,4 @@
-use actix_web::{HttpServer, App};
+use actix_web::{App, HttpServer};
 use fcaptcha_rs::web::{build_puzzle_service, verify_puzzle_result_service};
 
 #[actix_web::main]
