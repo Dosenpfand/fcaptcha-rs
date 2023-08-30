@@ -2,6 +2,10 @@
 
 An *experimental* alternative implementation of [FriendlyCaptcha/friendly-lite-server](https://github.com/FriendlyCaptcha/friendly-lite-server) in Rust using [Actix Web](https://actix.rs/).
 
+## Configuration
+
+Adapt the values in `conf/default.toml` or set environment varibles with the same names and an additional `FCAPTCHA_` prefix.
+
 ## Run
 
 ## Server

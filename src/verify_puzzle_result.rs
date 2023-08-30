@@ -1,8 +1,8 @@
+use crate::config::get;
 use base64::{engine::general_purpose, Engine as _};
 use blake2::{digest::consts::U32, Blake2b, Digest};
 use hmac_sha256::HMAC;
 use std::collections::{HashMap, HashSet};
-use std::env;
 use std::str;
 use std::sync::Mutex;
 use std::time::SystemTime;
@@ -11,14 +11,9 @@ lazy_static! {
     // TODO: Empty maps periodically!
     static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<Vec<u8>, u64>> =
         Mutex::new(HashMap::new());
-    static ref API_KEY: String = env::var("API_KEY").unwrap_or(String::from("NOT-AN-API-KEY"));
-    static ref PUZZLE_TTL: u64 = env::var("PUZZLE_TTL")
-        .unwrap_or(String::from("3600"))
-        .parse::<u64>()
-        .unwrap();
-    // TODO: Duplicated in web.rs
-    static ref SECRET_KEY: String =
-        env::var("SECRET_KEY").unwrap_or(String::from("NOT-A-SECRET-KEY"));
+    static ref API_KEY: String = get::<String>("API_KEY");
+    static ref PUZZLE_TTL: u64 = get::<u64>("PUZZLE_TTL");
+    static ref SECRET_KEY: String = get::<String>("SECRET_KEY");
 }
 
 pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {

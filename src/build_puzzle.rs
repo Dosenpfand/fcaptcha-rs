@@ -1,10 +1,10 @@
 use base64::{engine::general_purpose, Engine as _};
 use hmac_sha256::HMAC;
 use std::collections::HashMap;
-use std::env;
 use std::str;
 use std::sync::Mutex;
 use std::time::SystemTime;
+use crate::config::get;
 
 #[derive(Clone, Debug)]
 struct Access {
@@ -16,10 +16,7 @@ lazy_static! {
     // TODO: Empty maps periodically!
     static ref IP_ADDRESS_TO_ACCESS_MAP: Mutex<HashMap<String, Access>> =
         Mutex::new(HashMap::new());
-    static ref ACCESS_TTL: u64 = env::var("ACCESS_TTL")
-        .unwrap_or(String::from("1800"))
-        .parse::<u64>()
-        .unwrap();
+    static ref ACCESS_TTL: u64 = get::<u64>("ACCESS_TTL");
 }
 
 // TODO: use proper types

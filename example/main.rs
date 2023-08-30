@@ -1,5 +1,3 @@
-use std::env;
-
 use actix_cors::Cors;
 use actix_web::{
     get, http::StatusCode, post, web, App, Error, HttpResponse, HttpServer, Responder,
@@ -7,6 +5,7 @@ use actix_web::{
 use fcaptcha::{
     is_puzzle_result_valid,
     web::{build_puzzle_service, verify_puzzle_result_service},
+    config::get
 };
 use log::info;
 use serde::Deserialize;
@@ -53,8 +52,7 @@ async fn demo_form(web::Form(input): web::Form<FormInput>) -> String {
     );
 
     // TODO: Instead of calling directly, post JSON over HTTP?
-    // TODO: Eliminate duplicate
-    let api_key: String = env::var("API_KEY").unwrap_or(String::from("NOT-AN-API-KEY"));
+    let api_key: String = get::<String>("API_KEY");
     let is_valid = is_puzzle_result_valid(&input.frc_captcha_solution, api_key.as_bytes());
     format!(
         "Got: {:?}, result for captcha validation:{:?}",

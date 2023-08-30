@@ -1,11 +1,11 @@
 use actix_web::{get, post, web, HttpRequest, Responder};
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::error::Error;
 use std::str;
 
 use crate::build_puzzle::build_puzzle;
 use crate::verify_puzzle_result::is_puzzle_result_valid;
+use crate::config::get;
 
 #[derive(Serialize)]
 struct BuildPuzzleServiceOutputData {
@@ -30,8 +30,7 @@ struct VerifyPuzzleResultServiceOutput {
 }
 
 lazy_static! {
-    static ref SECRET_KEY: String =
-        env::var("SECRET_KEY").unwrap_or(String::from("NOT-A-SECRET-KEY"));
+    static ref SECRET_KEY: String = get::<String>("SECRET_KEY");
 }
 
 #[get("/build-puzzle")]
