@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  fcaptcha-server:
+    build:
+      context: ../
+      dockerfile: ./example/Dockerfile
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    environment:
+      - RUST_LOG=info

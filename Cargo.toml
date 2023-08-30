@@ -2,14 +2,19 @@
 name = "fcaptcha-rs"
 version = "0.1.0"
 edition = "2021"
+default-run = "fcaptcha-server"
 
 [lib]
 name = "fcaptcha"
 path = "src/lib.rs"
 
 [[bin]]
-name = "demo"
-path = "demo/main.rs"
+name = "fcaptcha-server"
+path = "src/main.rs"
+
+[[example]]
+name = "fcaptcha-demo"
+path = "example/main.rs"
 
 [features]
 default = ["web"]

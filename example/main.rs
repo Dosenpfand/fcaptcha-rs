@@ -31,7 +31,7 @@ async fn main() -> std::io::Result<()> {
             .service(demo_form)
             .service(index)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
 }
@@ -41,7 +41,7 @@ async fn index() -> impl Responder {
     Ok::<HttpResponse, Error>(
         HttpResponse::build(StatusCode::OK)
             .content_type("text/html; charset=utf-8")
-            .body(include_str!("../demo/index.html")),
+            .body(include_str!("index.html")),
     )
 }
 
@@ -53,6 +53,7 @@ async fn demo_form(web::Form(input): web::Form<FormInput>) -> String {
     );
 
     // TODO: Instead of calling directly, post JSON over HTTP?
+    // TODO: Eliminate duplicate
     let api_key: String = env::var("API_KEY").unwrap_or(String::from("NOT-AN-API-KEY"));
     let is_valid = is_puzzle_result_valid(&input.frc_captcha_solution, api_key.as_bytes());
     format!(

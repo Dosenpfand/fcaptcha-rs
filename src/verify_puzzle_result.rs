@@ -70,10 +70,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
             }
             None => {
                 info!("New puzzle with: {:?}", puzzle);
-                map.insert(
-                    puzzle.to_vec(),
-                    current_timestamp,
-                );
+                map.insert(puzzle.to_vec(), current_timestamp);
             }
         }
     }
@@ -114,9 +111,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
         info!("Full solution: {:?}", full_solution);
 
         type Blake2b256 = Blake2b<U32>;
-        let mut hasher = Blake2b256::new();
-        hasher.update(full_solution);
-        let hash = hasher.finalize();
+        let hash = Blake2b256::digest(full_solution);
         info!("Solution hash: {:?}", full_solution);
 
         let solution_leading = u32::from_le_bytes(hash[0..4].try_into().unwrap());
