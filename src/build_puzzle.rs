@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::str;
 use std::sync::Mutex;
 
-
 lazy_static! {
     // TODO: Empty maps periodically!
     static ref IP_ADDRESS_TO_ACCESS_MAP: Mutex<HashMap<String, Access>> =

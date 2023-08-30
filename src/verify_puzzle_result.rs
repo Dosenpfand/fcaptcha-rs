@@ -8,7 +8,6 @@ use std::collections::{HashMap, HashSet};
 use std::str;
 use std::sync::Mutex;
 
-
 lazy_static! {
     // TODO: Empty maps periodically!
     static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<Vec<u8>, u64>> =
