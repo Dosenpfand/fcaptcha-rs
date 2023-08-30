@@ -1,7 +1,7 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use fcaptcha::build_puzzle;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use fcaptcha::{build_puzzle, get, verify_puzzle_result::is_puzzle_result_valid_with_ttl};
 
-fn criterion_benchmark(c: &mut Criterion) {
+fn build_puzzle_benchmark(c: &mut Criterion) {
     let api_key = "b6db8801-4b39-4516-bd74-5eed7d7433a5".as_bytes();
     let ip_addresses = ["127.0.0.1", "192.168.0.0.1"];
 
@@ -19,5 +19,35 @@ fn criterion_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, criterion_benchmark);
+fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
+    let api_key = get::<String>("API_KEY");
+    let solution = "3761fae80ef01b32dcf892d099ca07f31db7a97311cce59529a4bae93a801db4.\
+    ZO+cGAAAAAEAAAABAQwzegAAAAAAAAAAWlXMkohinFU=.\
+    AAAAAIgRAAABAAAAzHwAAAIAAAAuDQAAAwAAAPsUAAAEAAAACaMAAAUAAADEGgAABgAAAEcSAAAHAAAAvz0AAAgAAABhpQ\
+    AACQAAAAstAAAKAAAA2CYAAAsAAADtNgEADAAAAC0CAAANAAAAFp8AAA4AAABdcgAADwAAAL6JAAAQAAAALYkAABEAAAD0\
+    vAEAEgAAAPxaAAATAAAAvFAAABQAAAAA7wEAFQAAAPoWAAAWAAAAGoEAABcAAACovwAAGAAAAGXcAAAZAAAAP2sBABoAAA\
+    D4BQAAGwAAAE9nAAAcAAAAFcQBAB0AAABQCgEAHgAAAB0FAAAfAAAAe9EAACAAAAClywAAIQAAAFYPAAAiAAAAtjcAACMA\
+    AABIgQAAJAAAAJoPAQAlAAAAYlgAACYAAABIbAAAJwAAAGCwAAAoAAAAokkAACkAAADl6gAAKgAAAAo5AQArAAAA5igAAC\
+    wAAADVfAAALQAAAHYfAAAuAAAALdYAAC8AAAC11gEAMAAAAN1dAAAxAAAAbyEAADIAAADjwAAA.\
+    AgAA";
+
+    c.bench_function(
+        "is_puzzle_result_valid",
+        |b: &mut criterion::Bencher<'_>| {
+            b.iter(|| {
+                assert!(is_puzzle_result_valid_with_ttl(
+                    black_box(solution),
+                    black_box(api_key.as_bytes()),
+                    0
+                ))
+            })
+        },
+    );
+}
+
+criterion_group!(
+    benches,
+    build_puzzle_benchmark,
+    is_puzzle_result_valid_benchmark
+);
 criterion_main!(benches);

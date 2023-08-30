@@ -38,5 +38,4 @@ and open http://localhost:8080
 2. [ ] Benchmark against reference implementation.
 3. [ ] Documentation.
 4. [ ] Tests.
-5. [ ] CI code coverage report.
-6. [ ] Proper error handling: Get rid of all `unwrap`s, etc.
+5. [ ] Proper error handling: Get rid of all `unwrap`s, etc.

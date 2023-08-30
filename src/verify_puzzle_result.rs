@@ -19,12 +19,16 @@ lazy_static! {
 }
 
 pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
+    is_puzzle_result_valid_with_ttl(solution, key, *PUZZLE_TTL)
+}
+
+pub fn is_puzzle_result_valid_with_ttl(solution: &str, key: &[u8], puzzle_ttl: u64) -> bool {
     if str::from_utf8(key).unwrap() != *API_KEY {
         return false;
     }
 
     let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
-    let signature = solution_parts[0];
+    let signature = hex::decode(solution_parts[0]).unwrap();
     let mut puzzle: [u8; 32] = [0; 32];
 
     info!("Trying to decode puzzle: {:?}", solution_parts[1]);
@@ -37,7 +41,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
     type HmacSha256 = Hmac<Sha256>;
     let mut macer = HmacSha256::new_from_slice(SECRET_KEY.as_bytes()).unwrap();
     macer.update(&puzzle);
-    let verify_result = macer.verify_slice(signature.as_bytes());
+    let verify_result = macer.verify_slice(&signature);
 
     match verify_result {
         Ok(_) => {
@@ -58,7 +62,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
 
         match puzzle_option {
             Some(timestamp) => {
-                if current_timestamp - *timestamp < *PUZZLE_TTL {
+                if current_timestamp - *timestamp < puzzle_ttl {
                     info!("Puzzle reuse with: {:?}", puzzle);
                     return false;
                 } else {
