@@ -15,7 +15,11 @@ path = "src/main.rs"
 
 [[example]]
 name = "fcaptcha-demo"
-path = "example/main.rs"
+path = "example/demo.rs"
+
+[[example]]
+name = "fcaptcha-single-puzzle"
+path = "example/single_puzzle.rs"
 
 [features]
 default = ["web"]
