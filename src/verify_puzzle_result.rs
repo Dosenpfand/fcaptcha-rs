@@ -7,7 +7,7 @@ use log::Level::Info;
 use std::collections::{HashMap, HashSet};
 use std::str;
 use std::sync::Mutex;
-use std::time::SystemTime;
+
 
 lazy_static! {
     // TODO: Empty maps periodically!

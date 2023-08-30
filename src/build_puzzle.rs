@@ -5,7 +5,7 @@ use hmac_sha256::HMAC;
 use std::collections::HashMap;
 use std::str;
 use std::sync::Mutex;
-use std::time::SystemTime;
+
 
 lazy_static! {
     // TODO: Empty maps periodically!
