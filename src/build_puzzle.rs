@@ -25,7 +25,6 @@ impl Access {
             .unwrap()
             .entry(ip_address.to_string())
             .and_modify(|access| {
-                println!("now: {:?}, last: {:?}", timestamp, access.last_access);
                 if timestamp - access.last_access > *ACCESS_TTL {
                     access.count = 1;
                 } else {

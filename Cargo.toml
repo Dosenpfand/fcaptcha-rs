@@ -34,3 +34,10 @@ serde = { version = "1.0.188", features = ["derive"] }
 blake2 = "0.10.6"
 actix-cors = "0.6.4"
 config = "0.13.3"
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "benchmark"
+harness = false
