@@ -29,7 +29,6 @@ web = []
 actix-web = "4.3.1"
 base64 = "0.21.3"
 hex = "0.4.3"
-hmac-sha256 = "1.1.7"
 lazy_static = "1.4.0"
 rand = "0.8.5"
 log = "0.4.0"
@@ -38,6 +37,8 @@ serde = { version = "1.0.188", features = ["derive"] }
 blake2 = "0.10.6"
 actix-cors = "0.6.4"
 config = "0.13.3"
+hmac = "0.12.1"
+sha2 = "0.10.7"
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }

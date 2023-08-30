@@ -2,8 +2,9 @@ use crate::config::get;
 use crate::util;
 use base64::{engine::general_purpose, Engine as _};
 use blake2::{digest::consts::U32, Blake2b, Digest};
-use hmac_sha256::HMAC;
+use hmac::{Hmac, Mac};
 use log::Level::Info;
+use sha2::Sha256;
 use std::collections::{HashMap, HashSet};
 use std::str;
 use std::sync::Mutex;
@@ -33,14 +34,19 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
         .decode_slice_unchecked(solution_parts[1], &mut puzzle)
         .unwrap();
 
-    let calc_signature = hex::encode(HMAC::mac(puzzle, SECRET_KEY.as_str()));
+    type HmacSha256 = Hmac<Sha256>;
+    let mut macer = HmacSha256::new_from_slice(SECRET_KEY.as_bytes()).unwrap();
+    macer.update(&puzzle);
+    let verify_result = macer.verify_slice(signature.as_bytes());
 
-    if calc_signature != signature {
-        info!(
-            "Signature mismatch, received: {:?}, calculated: {:?}",
-            signature, calc_signature
-        );
-        return false;
+    match verify_result {
+        Ok(_) => {
+            info!("Signature match");
+        }
+        Err(_) => {
+            info!("Signature mismatch");
+            return false;
+        }
     }
 
     let current_timestamp = util::get_timestamp();

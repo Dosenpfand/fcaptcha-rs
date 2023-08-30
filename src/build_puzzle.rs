@@ -1,7 +1,8 @@
 use crate::config::get;
 use crate::util;
 use base64::{engine::general_purpose, Engine as _};
-use hmac_sha256::HMAC;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 use std::collections::HashMap;
 use std::str;
 use std::sync::Mutex;
@@ -102,7 +103,10 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     construct_puzzle_data(timestamp, scaling, &mut puzzle_data);
 
     // HMAC data
-    let hmac = HMAC::mac(puzzle_data, key);
+    type HmacSha256 = Hmac<Sha256>;
+    let mut macer = HmacSha256::new_from_slice(key).unwrap();
+    macer.update(&puzzle_data);
+    let hmac = macer.finalize().into_bytes();
 
     // Base 64 encode data
     let mut data_b64: [u8; 44] = [0; 44];
