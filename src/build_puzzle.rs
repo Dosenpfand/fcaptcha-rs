@@ -1,15 +1,30 @@
+use crate::config::get;
 use base64::{engine::general_purpose, Engine as _};
 use hmac_sha256::HMAC;
 use std::collections::HashMap;
 use std::str;
 use std::sync::Mutex;
 use std::time::SystemTime;
-use crate::config::get;
 
 #[derive(Clone, Debug)]
 struct Access {
     count: u64,
     last_access: u64,
+}
+
+#[derive(Debug)]
+struct Scaling {
+    solution_count: u8,
+    difficulty: u8,
+}
+
+impl Scaling {
+    fn new(solution_count: u8, difficulty: u8) -> Scaling {
+        Scaling {
+            solution_count: solution_count,
+            difficulty: difficulty,
+        }
+    }
 }
 
 lazy_static! {
@@ -19,16 +34,15 @@ lazy_static! {
     static ref ACCESS_TTL: u64 = get::<u64>("ACCESS_TTL");
 }
 
-// TODO: use proper types
-fn get_scaling(access_count: u64) -> (u8, u8) {
+fn get_scaling(access_count: u64) -> Scaling {
     if access_count > 20 {
-        (45, 149)
+        Scaling::new(45, 149)
     } else if access_count > 10 {
-        (45, 141)
+        Scaling::new(45, 141)
     } else if access_count > 4 {
-        (51, 130)
+        Scaling::new(51, 130)
     } else {
-        (51, 122)
+        Scaling::new(51, 122)
     }
 }
 
@@ -56,10 +70,12 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
         })
         .clone();
 
-    let (count_solutions, difficulty) = get_scaling(access.count);
+    let scaling = get_scaling(access.count);
 
-    info!("Creating puzzle for ip_address: {:?}, timestamp: {:?}, access: {:?}, count_solutions: {:?}, difficulty: {:?}",
-        ip_address, timestamp, access, count_solutions, difficulty);
+    info!(
+        "Creating puzzle for ip_address: {:?}, timestamp: {:?}, access: {:?}, scaling: {:?}",
+        ip_address, timestamp, access, scaling
+    );
 
     let timestamp_truncated: u32 = timestamp.try_into().unwrap();
     let account_id: u32 = 1;
@@ -68,15 +84,14 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     let puzzle_expiry: u8 = 12;
     let nonce: u64 = rand::random();
 
-    // TODO: Optimize
     let mut data: [u8; 32] = [0; 32];
     data[0..][..4].copy_from_slice(&timestamp_truncated.to_be_bytes());
     data[4..][..4].copy_from_slice(&account_id.to_be_bytes());
     data[8..][..4].copy_from_slice(&app_id.to_be_bytes());
     data[12] = puzzle_ver;
     data[13] = puzzle_expiry;
-    data[14] = count_solutions;
-    data[15] = difficulty;
+    data[14] = scaling.solution_count;
+    data[15] = scaling.difficulty;
     // [16..][..4] = Reserved: zero
     data[24..][..8].copy_from_slice(&nonce.to_be_bytes());
 
@@ -91,7 +106,6 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     debug_assert!(data_b64_len == 44);
 
     // Concatenate HMAC and data
-    // TODO: Optimize?
     let puzzle = format!(
         "{}.{}",
         hex::encode(hmac),

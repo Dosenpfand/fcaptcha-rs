@@ -2,6 +2,7 @@ use crate::config::get;
 use base64::{engine::general_purpose, Engine as _};
 use blake2::{digest::consts::U32, Blake2b, Digest};
 use hmac_sha256::HMAC;
+use log::Level::Info;
 use std::collections::{HashMap, HashSet};
 use std::str;
 use std::sync::Mutex;
@@ -47,7 +48,6 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
         .unwrap()
         .as_secs();
 
-    // TODO: Refactor, improve, maybe use entry()?
     {
         let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();
 
@@ -70,15 +70,14 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
         }
     }
 
-    let solutions_count = puzzle[14];
+    if log_enabled!(Info) {
+        let diagnostics = general_purpose::STANDARD.decode(solution_parts[3]).unwrap();
+        info!("Got diagnostics: {:?}", diagnostics);
+    }
+
     let timestamp_received = u32::from_be_bytes(puzzle[0..4].try_into().unwrap());
     let age: u64 = current_timestamp - u64::from(timestamp_received);
     let expiry: u32 = u32::from(puzzle[13]) * 300;
-
-    let solutions = general_purpose::STANDARD.decode(solution_parts[2]).unwrap();
-
-    let _diagnostics = solution_parts[3];
-    // TODO: log diagnostics
 
     if (expiry != 0) && (age > u64::from(expiry)) {
         info!("Expired puzzle, age: {:?}, expiry: {:?}", age, expiry);
@@ -86,10 +85,11 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
     }
 
     let difficulty = puzzle[15];
+    let solutions_count = puzzle[14];
     // TODO: Why use floats?
     let threshold: u32 = (2_f32.powf(255.999 - f32::from(difficulty)) / 8_f32).floor() as u32;
     let mut seen_solutions = HashSet::<&[u8]>::new();
-
+    let solutions = general_purpose::STANDARD.decode(solution_parts[2]).unwrap();
     for solution_idx in 0..solutions_count {
         let current_start_idx = usize::from(solution_idx);
         let current_solution = &solutions[current_start_idx..current_start_idx + 8];
