@@ -1,4 +1,5 @@
 use crate::config::get;
+use crate::util;
 use base64::{engine::general_purpose, Engine as _};
 use blake2::{digest::consts::U32, Blake2b, Digest};
 use hmac_sha256::HMAC;
@@ -43,10 +44,7 @@ pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
         return false;
     }
 
-    let current_timestamp = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    let current_timestamp = util::get_timestamp();
 
     {
         let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();

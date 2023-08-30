@@ -55,7 +55,7 @@ async fn demo_form(web::Form(input): web::Form<FormInput>) -> String {
     let api_key: String = get::<String>("API_KEY");
     let is_valid = is_puzzle_result_valid(&input.frc_captcha_solution, api_key.as_bytes());
     format!(
-        "Got: {:?}, result for captcha validation:{:?}",
+        "Got: {:?}, result for captcha validation: {:?}",
         input, is_valid
     )
 }
