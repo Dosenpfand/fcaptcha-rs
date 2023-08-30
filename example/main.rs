@@ -3,9 +3,9 @@ use actix_web::{
     get, http::StatusCode, post, web, App, Error, HttpResponse, HttpServer, Responder,
 };
 use fcaptcha::{
+    config::get,
     is_puzzle_result_valid,
     web::{build_puzzle_service, verify_puzzle_result_service},
-    config::get
 };
 use log::info;
 use serde::Deserialize;

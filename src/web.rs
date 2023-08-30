@@ -4,8 +4,8 @@ use std::error::Error;
 use std::str;
 
 use crate::build_puzzle::build_puzzle;
-use crate::verify_puzzle_result::is_puzzle_result_valid;
 use crate::config::get;
+use crate::verify_puzzle_result::is_puzzle_result_valid;
 
 #[derive(Serialize)]
 struct BuildPuzzleServiceOutputData {
