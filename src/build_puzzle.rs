@@ -25,6 +25,7 @@ impl Access {
             .unwrap()
             .entry(ip_address.to_string())
             .and_modify(|access| {
+                println!("now: {:?}, last: {:?}", timestamp, access.last_access);
                 if timestamp - access.last_access > *ACCESS_TTL {
                     access.count = 1;
                 } else {
@@ -119,4 +120,59 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     );
 
     puzzle
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_access_first() {
+        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
+        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
+        let ip_address: &str = "192.168.0.10";
+        let timestamp = 1234_u64;
+        let access = Access::get(ip_address, timestamp);
+        assert!(access.count == 1);
+        assert!(access.last_access == timestamp);
+    }
+
+    #[test]
+    fn test_get_access_second() {
+        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
+        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
+        test_get_access_first();
+
+        let ip_address = "192.168.0.10";
+        let timestamp = 1234_u64;
+        let access = Access::get(ip_address, timestamp);
+        assert_eq!(access.count, 2);
+        assert_eq!(access.last_access, timestamp);
+    }
+
+    #[test]
+    fn test_get_access_second_within_ttl() {
+        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
+        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
+        test_get_access_first();
+
+        let ip_address = "192.168.0.10";
+        let timestamp = 1234_u64 + *ACCESS_TTL;
+        let access = Access::get(ip_address, timestamp);
+        assert_eq!(access.count, 2);
+        assert_eq!(access.last_access, timestamp);
+    }
+
+    #[test]
+    fn test_get_access_second_after_ttl() {
+        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
+        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
+        test_get_access_first();
+
+        let ip_address = "192.168.0.10";
+        let timestamp = 1234_u64 + *ACCESS_TTL + 1;
+        let access = Access::get(ip_address, timestamp);
+        assert_eq!(access.count, 1);
+        assert_eq!(access.last_access, timestamp);
+    }
 }
