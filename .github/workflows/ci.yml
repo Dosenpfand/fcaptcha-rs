@@ -80,7 +80,7 @@ jobs:
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
           RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
       - id: coverage
-        uses: actions-rs/grcov@0.2proto
+        uses: actions-rs/grcov@0.2-proto
       - uses: codecov/codecov-action@v3
         with:
           files: ${{ steps.coverage.outputs.report }}
