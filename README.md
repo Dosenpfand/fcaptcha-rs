@@ -7,11 +7,13 @@ An *experimental* alternative implementation of [FriendlyCaptcha/friendly-lite-s
 
 ## Configuration
 
-Adapt the values in `conf/default.toml` or set environment varibles with the same names and an additional `FCAPTCHA_` prefix.
+Adapt the values in `conf/default.toml` or set environment variables with the same names and an additional `FCAPTCHA_` prefix.
 
 ## Run
 
 ## Server
+
+Barebone server hosting puzzle generation and solution verification.
 
 ```
 cargo run
@@ -22,7 +24,9 @@ docker-compose up
 ```
 and open http://localhost:8080/build-puzzle
 
-## Demo
+## Web Demo
+
+Demo with generation, verification and widget.
 
 ```
 cargo run --example fcaptcha-demo
@@ -32,6 +36,30 @@ or
 docker-compose --file example/docker-compose.yml up
 ```
 and open http://localhost:8080
+
+## CLI Demo
+
+Demo generating a single puzzle and verifying a single solution.
+
+```
+cargo run --example fcaptcha-single-puzzle
+```
+
+## Benchmark
+
+Benchmark puzzle generation and solution verification.
+
+```
+cargo bench
+```
+
+## Flamegraph
+
+Requires `perf` and `cargo-flamegraph`.
+
+```
+CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --bench benchmark
+```
 
 ## ToDo
 1. [ ] Resolve all `TODO`s in the code.
