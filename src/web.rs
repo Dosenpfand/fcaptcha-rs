@@ -1,4 +1,5 @@
-use actix_web::{get, post, web, HttpRequest, Responder};
+use actix_web::http::StatusCode;
+use actix_web::{get, post, web, HttpRequest, Responder, Result};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::str;
@@ -6,6 +7,11 @@ use std::str;
 use crate::build_puzzle::build_puzzle;
 use crate::config::get;
 use crate::verify_puzzle_result::is_puzzle_result_valid;
+
+#[derive(Deserialize)]
+pub struct BuildPuzzleServiceInput {
+    sitekey: String,
+}
 
 #[derive(Serialize)]
 struct BuildPuzzleServiceOutputData {
@@ -15,6 +21,14 @@ struct BuildPuzzleServiceOutputData {
 #[derive(Serialize)]
 struct BuildPuzzleServiceOutput {
     data: BuildPuzzleServiceOutputData,
+}
+
+impl BuildPuzzleServiceOutput {
+    fn new(puzzle: String) -> BuildPuzzleServiceOutput {
+        BuildPuzzleServiceOutput {
+            data: BuildPuzzleServiceOutputData { puzzle },
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -30,19 +44,30 @@ struct VerifyPuzzleResultServiceOutput {
 }
 
 lazy_static! {
+    static ref API_KEY: String = get::<String>("API_KEY");
     static ref SECRET_KEY: String = get::<String>("SECRET_KEY");
 }
 
 #[get("/build-puzzle")]
-pub async fn build_puzzle_service(req: HttpRequest) -> impl Responder {
+pub async fn build_puzzle_service(
+    req: HttpRequest,
+    input: web::Query<BuildPuzzleServiceInput>,
+) -> Result<impl Responder> {
+    if input.sitekey != *API_KEY {
+        return Ok((
+            web::Json(BuildPuzzleServiceOutput::new("".to_string())),
+            StatusCode::FORBIDDEN,
+        ));
+    }
     let con_info = req.connection_info();
     let resp_text = build_puzzle(
         SECRET_KEY.as_bytes(),
         con_info.realip_remote_addr().unwrap(),
     );
-    Ok::<web::Json<BuildPuzzleServiceOutput>, Box<dyn Error>>(web::Json(BuildPuzzleServiceOutput {
-        data: BuildPuzzleServiceOutputData { puzzle: resp_text },
-    }))
+    Ok((
+        web::Json(BuildPuzzleServiceOutput::new(resp_text)),
+        StatusCode::OK,
+    ))
 }
 
 #[post("/verify-puzzle-result")]

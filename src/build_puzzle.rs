@@ -21,8 +21,8 @@ struct Scaling {
 impl Scaling {
     fn new(solution_count: u8, difficulty: u8) -> Scaling {
         Scaling {
-            solution_count: solution_count,
-            difficulty: difficulty,
+            solution_count,
+            difficulty,
         }
     }
 }
@@ -78,6 +78,7 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     );
 
     let timestamp_truncated: u32 = timestamp.try_into().unwrap();
+    // TODO: Make configurable
     let account_id: u32 = 1;
     let app_id: u32 = 1;
     let puzzle_ver: u8 = 1;
