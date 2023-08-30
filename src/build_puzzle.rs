@@ -128,9 +128,7 @@ mod tests {
 
     #[test]
     fn test_get_access_first() {
-        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
-        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
-        let ip_address: &str = "192.168.0.10";
+        let ip_address: &str = "192.168.0.1";
         let timestamp = 1234_u64;
         let access = Access::get(ip_address, timestamp);
         assert!(access.count == 1);
@@ -139,12 +137,10 @@ mod tests {
 
     #[test]
     fn test_get_access_second() {
-        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
-        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
-        test_get_access_first();
-
-        let ip_address = "192.168.0.10";
-        let timestamp = 1234_u64;
+        let ip_address = "192.168.0.2";
+        let timestamp: u64 = 1234_u64;
+        Access::get(ip_address, timestamp);
+        let timestamp: u64 = 1235_u64;
         let access = Access::get(ip_address, timestamp);
         assert_eq!(access.count, 2);
         assert_eq!(access.last_access, timestamp);
@@ -152,11 +148,9 @@ mod tests {
 
     #[test]
     fn test_get_access_second_within_ttl() {
-        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
-        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
-        test_get_access_first();
-
-        let ip_address = "192.168.0.10";
+        let ip_address = "192.168.0.3";
+        let timestamp: u64 = 1234_u64;
+        Access::get(ip_address, timestamp);
         let timestamp = 1234_u64 + *ACCESS_TTL;
         let access = Access::get(ip_address, timestamp);
         assert_eq!(access.count, 2);
@@ -165,11 +159,9 @@ mod tests {
 
     #[test]
     fn test_get_access_second_after_ttl() {
-        IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().clear();
-        assert!(IP_ADDRESS_TO_ACCESS_MAP.lock().unwrap().is_empty());
-        test_get_access_first();
-
-        let ip_address = "192.168.0.10";
+        let ip_address = "192.168.0.4";
+        let timestamp: u64 = 1234_u64;
+        Access::get(ip_address, timestamp);
         let timestamp = 1234_u64 + *ACCESS_TTL + 1;
         let access = Access::get(ip_address, timestamp);
         assert_eq!(access.count, 1);
