@@ -1,6 +1,7 @@
 # fcaptcha-rs
 
-![example branch parameter](https://github.com/Dosenpfand/fcaptcha-rs/actions/workflows/ci.yml/badge.svg?branch=master)
+![Build Status](https://github.com/Dosenpfand/fcaptcha-rs/actions/workflows/ci.yml/badge.svg?branch=master)
+[![Covde Coverage](https://codecov.io/github/Dosenpfand/fcaptcha-rs/coverage.svg?branch=master)](https://codecov.io/gh/jonhoo/inferno)
 
 An *experimental* alternative implementation of [FriendlyCaptcha/friendly-lite-server](https://github.com/FriendlyCaptcha/friendly-lite-server) in Rust using [Actix Web](https://actix.rs/).
 
