@@ -7,8 +7,15 @@ An *experimental* alternative implementation of [FriendlyCaptcha/friendly-lite-s
 
 ## Configuration
 
-Adapt the values in `conf/default.toml` or set environment variables with the same names and an additional `FCAPTCHA_` prefix.
-
+Set the corresponding environment variables:
+```
+FCAPTCHA_BIND_ADDRESS
+FCAPTCHA_BIND_PORT
+FCAPTCHA_ACCESS_TTL
+FCAPTCHA_PUZZLE_TTL
+FCAPTCHA_SECRET_KEY
+FCAPTCHA_API_KEY
+```
 ## Run
 
 ## Server
@@ -47,10 +54,16 @@ cargo run --example fcaptcha-single-puzzle
 
 ## Benchmark
 
-Benchmark puzzle generation and solution verification.
+Benchmark puzzle generation and solution verification
 
 ```
 cargo bench
+```
+
+or puzzle generation over HTTP (needs the Apache HTTP benchmark tool).
+
+```
+docker-compose up -d && ab -n 1000000 -c 1000 -r http://127.0.0.1:8080/build-puzzle
 ```
 
 ## Flamegraph
