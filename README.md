@@ -67,3 +67,4 @@ CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --bench benchmark
 3. [ ] Documentation.
 4. [ ] Tests.
 5. [ ] Proper error handling: Get rid of all `unwrap`s, etc.
+6. [ ] Fuzz test.
