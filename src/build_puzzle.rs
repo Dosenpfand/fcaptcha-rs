@@ -172,8 +172,7 @@ mod tests {
         let ip_address = "127.0.0.1";
         let timestamp = 1693469848;
         let nonce = 0x1122334455667788;
-        let expected_puzzle =
-        "86505156a95e735652e7fd6d9eaaa9e5f839fc0a886268bebf5b8d2ad1038df5.\
+        let expected_puzzle = "86505156a95e735652e7fd6d9eaaa9e5f839fc0a886268bebf5b8d2ad1038df5.\
         ZPBMmAAAAAEAAAABAQwzegAAAAAAAAAAESIzRFVmd4g=";
 
         let puzzle = build_puzzle_with_timestamp_and_nonce(key, ip_address, timestamp, nonce)?;
