@@ -93,6 +93,7 @@ impl Scaling {
 
 fn construct_puzzle_data(
     timestamp: u64,
+    nonce: u64,
     scaling: Scaling,
     data_buffer: &mut [u8],
 ) -> Result<(), BuildPuzzleError> {
@@ -104,7 +105,6 @@ fn construct_puzzle_data(
     let app_id: u32 = 1;
     let puzzle_ver: u8 = 1;
     let puzzle_expiry: u8 = 12;
-    let nonce: u64 = rand::random();
 
     data_buffer[0..][..4].copy_from_slice(&timestamp_truncated.to_be_bytes());
     data_buffer[4..][..4].copy_from_slice(&account_id.to_be_bytes());
@@ -120,7 +120,16 @@ fn construct_puzzle_data(
 
 pub fn build_puzzle(key: &[u8], ip_address: &str) -> Result<String, BuildPuzzleError> {
     let timestamp = util::get_timestamp();
+    let nonce: u64 = rand::random();
+    build_puzzle_with_timestamp_and_nonce(key, ip_address, timestamp, nonce)
+}
 
+pub fn build_puzzle_with_timestamp_and_nonce(
+    key: &[u8],
+    ip_address: &str,
+    timestamp: u64,
+    nonce: u64,
+) -> Result<String, BuildPuzzleError> {
     let access = Access::get(ip_address, timestamp)?;
     let scaling = Scaling::get(access.count);
 
@@ -130,7 +139,7 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> Result<String, BuildPuzzleE
     );
 
     let mut puzzle_data: [u8; 32] = [0; 32];
-    construct_puzzle_data(timestamp, scaling, &mut puzzle_data)?;
+    construct_puzzle_data(timestamp, nonce, scaling, &mut puzzle_data)?;
 
     // HMAC data
     type HmacSha256 = Hmac<Sha256>;
@@ -156,6 +165,22 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> Result<String, BuildPuzzleE
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_build_puzzle_with_timestamp_and_nonce() -> Result<(), BuildPuzzleError> {
+        let key = "TEST-KEY".as_bytes();
+        let ip_address = "127.0.0.1";
+        let timestamp = 1693469848;
+        let nonce = 0x1122334455667788;
+        let expected_puzzle =
+        "86505156a95e735652e7fd6d9eaaa9e5f839fc0a886268bebf5b8d2ad1038df5.\
+        ZPBMmAAAAAEAAAABAQwzegAAAAAAAAAAESIzRFVmd4g=";
+
+        let puzzle = build_puzzle_with_timestamp_and_nonce(key, ip_address, timestamp, nonce)?;
+
+        assert_eq!(expected_puzzle, puzzle);
+        Ok(())
+    }
 
     #[test]
     fn test_get_access_first() -> Result<(), BuildPuzzleError> {
