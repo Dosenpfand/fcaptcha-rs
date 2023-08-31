@@ -1,11 +1,14 @@
 use crate::config::get;
 use crate::util;
+use base64::EncodeSliceError;
 use base64::{engine::general_purpose, Engine as _};
+use blake2::digest::InvalidLength;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use std::collections::HashMap;
 use std::str;
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
+use thiserror::Error;
 
 lazy_static! {
     // TODO: Empty maps periodically!
@@ -13,6 +16,27 @@ lazy_static! {
         Mutex::new(HashMap::new());
     static ref ACCESS_TTL: u64 = get::<u64>("ACCESS_TTL");
 }
+
+#[derive(Error, Debug)]
+pub enum BuildPuzzleError {
+    #[error("Encoding failed.")]
+    Encoding(#[from] EncodeSliceError),
+    #[error("Hashing failed.")]
+    Hashing(#[from] InvalidLength),
+    #[error("Data access failed.")]
+    DataAccess,
+    #[error("Data conversion failed.")]
+    Conversion,
+    #[error("Unknown error.")]
+    Unknown,
+}
+
+impl<T> From<PoisonError<T>> for BuildPuzzleError {
+    fn from(_err: PoisonError<T>) -> Self {
+        Self::DataAccess
+    }
+}
+
 #[derive(Clone, Debug)]
 struct Access {
     count: u64,
@@ -20,10 +44,9 @@ struct Access {
 }
 
 impl Access {
-    fn get(ip_address: &str, timestamp: u64) -> Access {
-        IP_ADDRESS_TO_ACCESS_MAP
-            .lock()
-            .unwrap()
+    fn get(ip_address: &str, timestamp: u64) -> Result<Access, BuildPuzzleError> {
+        let mut lock = IP_ADDRESS_TO_ACCESS_MAP.lock()?;
+        Ok(lock
             .entry(ip_address.to_string())
             .and_modify(|access| {
                 if timestamp - access.last_access > *ACCESS_TTL {
@@ -37,7 +60,7 @@ impl Access {
                 count: 1,
                 last_access: timestamp,
             })
-            .clone()
+            .clone())
     }
 }
 
@@ -68,8 +91,14 @@ impl Scaling {
     }
 }
 
-fn construct_puzzle_data(timestamp: u64, scaling: Scaling, data_buffer: &mut [u8]) {
-    let timestamp_truncated: u32 = timestamp.try_into().unwrap();
+fn construct_puzzle_data(
+    timestamp: u64,
+    scaling: Scaling,
+    data_buffer: &mut [u8],
+) -> Result<(), BuildPuzzleError> {
+    let timestamp_truncated: u32 = timestamp
+        .try_into()
+        .map_err(|_| BuildPuzzleError::Conversion)?;
     // TODO: Make configurable
     let account_id: u32 = 1;
     let app_id: u32 = 1;
@@ -86,12 +115,13 @@ fn construct_puzzle_data(timestamp: u64, scaling: Scaling, data_buffer: &mut [u8
     data_buffer[15] = scaling.difficulty;
     // [16..][..4] = Reserved: zero
     data_buffer[24..][..8].copy_from_slice(&nonce.to_be_bytes());
+    Ok(())
 }
 
-pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
+pub fn build_puzzle(key: &[u8], ip_address: &str) -> Result<String, BuildPuzzleError> {
     let timestamp = util::get_timestamp();
 
-    let access = Access::get(ip_address, timestamp);
+    let access = Access::get(ip_address, timestamp)?;
     let scaling = Scaling::get(access.count);
 
     info!(
@@ -100,19 +130,17 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
     );
 
     let mut puzzle_data: [u8; 32] = [0; 32];
-    construct_puzzle_data(timestamp, scaling, &mut puzzle_data);
+    construct_puzzle_data(timestamp, scaling, &mut puzzle_data)?;
 
     // HMAC data
     type HmacSha256 = Hmac<Sha256>;
-    let mut macer = HmacSha256::new_from_slice(key).unwrap();
+    let mut macer = HmacSha256::new_from_slice(key)?;
     macer.update(&puzzle_data);
     let hmac = macer.finalize().into_bytes();
 
     // Base 64 encode data
     let mut data_b64: [u8; 44] = [0; 44];
-    let data_b64_len = general_purpose::STANDARD
-        .encode_slice(puzzle_data, &mut data_b64)
-        .unwrap();
+    let data_b64_len = general_purpose::STANDARD.encode_slice(puzzle_data, &mut data_b64)?;
     debug_assert!(data_b64_len == 44);
 
     // Concatenate HMAC and data
@@ -122,7 +150,7 @@ pub fn build_puzzle(key: &[u8], ip_address: &str) -> String {
         String::from_utf8_lossy(&data_b64)
     );
 
-    puzzle
+    Ok(puzzle)
 }
 
 #[cfg(test)]
@@ -130,44 +158,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_access_first() {
+    fn test_get_access_first() -> Result<(), BuildPuzzleError> {
         let ip_address: &str = "192.168.0.1";
         let timestamp = 1234_u64;
-        let access = Access::get(ip_address, timestamp);
+        let access = Access::get(ip_address, timestamp)?;
         assert!(access.count == 1);
         assert!(access.last_access == timestamp);
+        Ok(())
     }
 
     #[test]
-    fn test_get_access_second() {
+    fn test_get_access_second() -> Result<(), BuildPuzzleError> {
         let ip_address = "192.168.0.2";
         let timestamp: u64 = 1234_u64;
-        Access::get(ip_address, timestamp);
+        Access::get(ip_address, timestamp)?;
         let timestamp: u64 = 1235_u64;
-        let access = Access::get(ip_address, timestamp);
+        let access = Access::get(ip_address, timestamp)?;
         assert_eq!(access.count, 2);
         assert_eq!(access.last_access, timestamp);
+        Ok(())
     }
 
     #[test]
-    fn test_get_access_second_within_ttl() {
+    fn test_get_access_second_within_ttl() -> Result<(), BuildPuzzleError> {
         let ip_address = "192.168.0.3";
         let timestamp: u64 = 1234_u64;
-        Access::get(ip_address, timestamp);
+        Access::get(ip_address, timestamp)?;
         let timestamp = 1234_u64 + *ACCESS_TTL;
-        let access = Access::get(ip_address, timestamp);
+        let access = Access::get(ip_address, timestamp)?;
         assert_eq!(access.count, 2);
         assert_eq!(access.last_access, timestamp);
+        Ok(())
     }
 
     #[test]
-    fn test_get_access_second_after_ttl() {
+    fn test_get_access_second_after_ttl() -> Result<(), BuildPuzzleError> {
         let ip_address = "192.168.0.4";
         let timestamp: u64 = 1234_u64;
-        Access::get(ip_address, timestamp);
+        Access::get(ip_address, timestamp)?;
         let timestamp = 1234_u64 + *ACCESS_TTL + 1;
-        let access = Access::get(ip_address, timestamp);
+        let access = Access::get(ip_address, timestamp)?;
         assert_eq!(access.count, 1);
         assert_eq!(access.last_access, timestamp);
+        Ok(())
     }
 }

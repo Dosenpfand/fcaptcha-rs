@@ -60,14 +60,21 @@ pub async fn build_puzzle_service(
         ));
     }
     let con_info = req.connection_info();
-    let resp_text = build_puzzle(
+    let puzzle_result = build_puzzle(
         SECRET_KEY.as_bytes(),
         con_info.realip_remote_addr().unwrap(),
     );
-    Ok((
-        web::Json(BuildPuzzleServiceOutput::new(resp_text)),
-        StatusCode::OK,
-    ))
+    match puzzle_result {
+        Ok(puzzle) => Ok((
+            web::Json(BuildPuzzleServiceOutput::new(puzzle)),
+            StatusCode::OK,
+        )),
+        Err(_) => Ok((
+            // TODO: Propagate error information
+            web::Json(BuildPuzzleServiceOutput::new("".to_string())),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )),
+    }
 }
 
 #[post("/verify-puzzle-result")]
