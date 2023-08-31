@@ -19,10 +19,20 @@ lazy_static! {
 }
 
 pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
-    is_puzzle_result_valid_with_ttl(solution, key, *PUZZLE_TTL)
+    is_puzzle_result_valid_with_ttl_and_timestamp(
+        solution,
+        key,
+        *PUZZLE_TTL,
+        util::get_timestamp(),
+    )
 }
 
-pub fn is_puzzle_result_valid_with_ttl(solution: &str, key: &[u8], puzzle_ttl: u64) -> bool {
+pub fn is_puzzle_result_valid_with_ttl_and_timestamp(
+    solution: &str,
+    key: &[u8],
+    puzzle_ttl: u64,
+    current_timestamp: u64,
+) -> bool {
     if str::from_utf8(key).unwrap() != *API_KEY {
         return false;
     }
@@ -52,8 +62,6 @@ pub fn is_puzzle_result_valid_with_ttl(solution: &str, key: &[u8], puzzle_ttl: u
             return false;
         }
     }
-
-    let current_timestamp = util::get_timestamp();
 
     {
         let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();

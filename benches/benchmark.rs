@@ -1,5 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fcaptcha::{build_puzzle, get, verify_puzzle_result::is_puzzle_result_valid_with_ttl};
+use fcaptcha::{
+    build_puzzle, get, verify_puzzle_result::is_puzzle_result_valid_with_ttl_and_timestamp,
+};
 
 fn build_puzzle_benchmark(c: &mut Criterion) {
     let api_key = "b6db8801-4b39-4516-bd74-5eed7d7433a5".as_bytes();
@@ -30,16 +32,19 @@ fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
     AABIgQAAJAAAAJoPAQAlAAAAYlgAACYAAABIbAAAJwAAAGCwAAAoAAAAokkAACkAAADl6gAAKgAAAAo5AQArAAAA5igAAC\
     wAAADVfAAALQAAAHYfAAAuAAAALdYAAC8AAAC11gEAMAAAAN1dAAAxAAAAbyEAADIAAADjwAAA.\
     AgAA";
+    let timestamp: u64 = 1693424664;
 
     c.bench_function(
         "is_puzzle_result_valid",
         |b: &mut criterion::Bencher<'_>| {
             b.iter(|| {
-                assert!(is_puzzle_result_valid_with_ttl(
+                let is_v = is_puzzle_result_valid_with_ttl_and_timestamp(
                     black_box(solution),
                     black_box(api_key.as_bytes()),
-                    0
-                ))
+                    black_box(0),
+                    black_box(timestamp),
+                );
+                assert!(is_v)
             })
         },
     );
