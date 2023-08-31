@@ -19,12 +19,7 @@ lazy_static! {
 }
 
 pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
-    is_puzzle_result_valid_with_ttl_and_timestamp(
-        solution,
-        key,
-        *PUZZLE_TTL,
-        util::get_timestamp(),
-    )
+    is_puzzle_result_valid_with_ttl_and_timestamp(solution, key, *PUZZLE_TTL, util::get_timestamp())
 }
 
 pub fn is_puzzle_result_valid_with_ttl_and_timestamp(
