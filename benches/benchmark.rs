@@ -18,7 +18,7 @@ fn build_puzzle_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
+fn verify_puzzle_result_with_benchmark(c: &mut Criterion) {
     let secret_key = get::<Vec<u8>>("SECRET_KEY");
     let solution = "3761fae80ef01b32dcf892d099ca07f31db7a97311cce59529a4bae93a801db4.\
     ZO+cGAAAAAEAAAABAQwzegAAAAAAAAAAWlXMkohinFU=.\
@@ -32,7 +32,7 @@ fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
     let timestamp: u64 = 1693424664;
 
     c.bench_function(
-        "is_puzzle_result_valid",
+        "verify_puzzle_result_with",
         |b: &mut criterion::Bencher<'_>| {
             b.iter(|| {
                 let result = verify_puzzle_result_with(
@@ -50,6 +50,6 @@ fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
 criterion_group!(
     benches,
     build_puzzle_benchmark,
-    is_puzzle_result_valid_benchmark
+    verify_puzzle_result_with_benchmark,
 );
 criterion_main!(benches);
