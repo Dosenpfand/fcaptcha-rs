@@ -77,7 +77,4 @@ CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --bench benchmark
 ## ToDo
 1. [ ] Resolve all `TODO`s in the code.
 2. [ ] Benchmark against reference implementation.
-3. [ ] Documentation.
-4. [ ] Tests.
-5. [ ] Fuzz test.
-6. [ ] Deploy to e.g. matheworkout.at
+3. [ ] Deploy to e.g. matheworkout.at

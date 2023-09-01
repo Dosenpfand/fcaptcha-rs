@@ -1,3 +1,9 @@
+//! # fcaptcha
+//!
+//! An *experimental* alternative implementation of
+//! [FriendlyCaptcha/friendly-lite-server](https://github.com/FriendlyCaptcha/friendly-lite-server)
+//! in Rust using [Actix Web](https://actix.rs/).
+
 #[macro_use]
 extern crate lazy_static;
 

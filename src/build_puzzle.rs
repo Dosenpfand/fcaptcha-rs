@@ -122,20 +122,50 @@ fn construct_puzzle_data(
     Ok(())
 }
 
+/// Builds a new puzzle for an `ip_address`.
+/// Can be configured with the environment variables `FCAPTCHA_ACCESS_TTL` and `FCAPTCHA_SECRET_KEY`.
+///
+/// # Examples
+///
+/// ```
+/// let ip_address = "127.0.0.1";
+/// let puzzle = fcaptcha::build_puzzle(ip_address);
+///
+/// println!("{:?}", puzzle.unwrap());
+/// ```
 pub fn build_puzzle(ip_address: &str) -> Result<String, BuildPuzzleError> {
     let timestamp = util::get_timestamp()?;
     let nonce: u64 = rand::random();
     build_puzzle_with(ip_address, timestamp, nonce, &SECRET_KEY, *ACCESS_TTL)
 }
 
+/// Builds a new puzzle. In contrast to [build_puzzle] all input variables can be controlled
+/// directly instead deriving them from environment variables.
+///
+/// # Examples
+///
+/// ```
+/// use std::time::SystemTime;
+/// let ip_address = "127.0.0.1";
+/// let timestamp = SystemTime::now()
+///     .duration_since(SystemTime::UNIX_EPOCH)
+///     .unwrap()
+///     .as_secs();
+/// let secret_key = "SECRET-KEY".as_bytes();
+/// let nonce = rand::random();
+/// let access_ttl_secs = 1800;
+/// let puzzle =
+///      fcaptcha::build_puzzle_with(ip_address, timestamp, nonce, secret_key, access_ttl_secs);
+/// println!("{:?}", puzzle.unwrap());
+/// ```
 pub fn build_puzzle_with(
     ip_address: &str,
     timestamp: u64,
     nonce: u64,
     secret_key: &[u8],
-    access_ttl: u64,
+    access_ttl_secs: u64,
 ) -> Result<String, BuildPuzzleError> {
-    let access = Access::get(ip_address, timestamp, access_ttl)?;
+    let access = Access::get(ip_address, timestamp, access_ttl_secs)?;
     let scaling = Scaling::get(access.count);
 
     info!(
