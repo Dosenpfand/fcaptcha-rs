@@ -1,8 +1,9 @@
 #![no_main]
 
+use fcaptcha::verify_puzzle_result_with;
 use libfuzzer_sys::fuzz_target;
-use fcaptcha::verify_puzzle_result;
 
 fuzz_target!(|data: &str| {
-    verify_puzzle_result(data);
+    // TODO: Can not proceed further then verify_signature()
+    let _ = verify_puzzle_result_with(data, 0, 0, "".as_bytes());
 });
