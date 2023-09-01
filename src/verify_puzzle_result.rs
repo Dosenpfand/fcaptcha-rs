@@ -13,25 +13,25 @@ lazy_static! {
     // TODO: Empty maps periodically!
     static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<Vec<u8>, u64>> =
         Mutex::new(HashMap::new());
-    static ref API_KEY: String = get::<String>("API_KEY");
     static ref PUZZLE_TTL: u64 = get::<u64>("PUZZLE_TTL");
-    static ref SECRET_KEY: String = get::<String>("SECRET_KEY");
+    static ref SECRET_KEY: Vec<u8> = get::<Vec<u8>>("SECRET_KEY");
 }
 
-pub fn is_puzzle_result_valid(solution: &str, key: &[u8]) -> bool {
-    is_puzzle_result_valid_with_ttl_and_timestamp(solution, key, *PUZZLE_TTL, util::get_timestamp())
+pub fn is_puzzle_result_valid(solution: &str) -> bool {
+    is_puzzle_result_valid_with(
+        solution,
+        util::get_timestamp(),
+        *PUZZLE_TTL,
+        &*SECRET_KEY,
+    )
 }
 
-pub fn is_puzzle_result_valid_with_ttl_and_timestamp(
+pub fn is_puzzle_result_valid_with(
     solution: &str,
-    key: &[u8],
-    puzzle_ttl: u64,
     current_timestamp: u64,
+    puzzle_ttl: u64,
+    secret_key: &[u8],
 ) -> bool {
-    if str::from_utf8(key).unwrap() != *API_KEY {
-        return false;
-    }
-
     let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
     let signature = hex::decode(solution_parts[0]).unwrap();
     let mut puzzle: [u8; 32] = [0; 32];
@@ -44,7 +44,7 @@ pub fn is_puzzle_result_valid_with_ttl_and_timestamp(
         .unwrap();
 
     type HmacSha256 = Hmac<Sha256>;
-    let mut macer = HmacSha256::new_from_slice(SECRET_KEY.as_bytes()).unwrap();
+    let mut macer = HmacSha256::new_from_slice(secret_key).unwrap();
     macer.update(&puzzle);
     let verify_result = macer.verify_slice(&signature);
 

@@ -1,7 +1,6 @@
 use actix_web::http::StatusCode;
 use actix_web::{get, post, web, HttpRequest, Responder, Result};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::str;
 
 use crate::build_puzzle::build_puzzle;
@@ -44,7 +43,7 @@ struct VerifyPuzzleResultServiceOutput {
 }
 
 lazy_static! {
-    static ref API_KEY: String = get::<String>("API_KEY");
+    static ref API_KEY: Vec<u8> = get::<Vec<u8>>("API_KEY");
 }
 
 #[get("/build-puzzle")]
@@ -52,7 +51,7 @@ pub async fn build_puzzle_service(
     req: HttpRequest,
     input: web::Query<BuildPuzzleServiceInput>,
 ) -> Result<impl Responder> {
-    if input.sitekey != *API_KEY {
+    if input.sitekey.as_bytes() != *API_KEY {
         return Ok((
             web::Json(BuildPuzzleServiceOutput::new("".to_string())),
             StatusCode::FORBIDDEN,
@@ -76,15 +75,24 @@ pub async fn build_puzzle_service(
 #[post("/verify-puzzle-result")]
 pub async fn verify_puzzle_result_service(
     input: web::Json<VerifyPuzzleResultServiceInput>,
-) -> impl Responder {
+) -> Result<impl Responder> {
+    if input.secret.as_bytes() != *API_KEY {
+        return Ok((
+            web::Json(VerifyPuzzleResultServiceOutput {
+                success: false,
+                errors: Some("secret_invalid".to_string()),
+            }),
+            StatusCode::FORBIDDEN,
+        ));
+    }
+
     info!("Got puzzle result verify request with {:?}", input);
-
-    let is_valid = is_puzzle_result_valid(&input.solution, input.secret.as_bytes());
-
-    Ok::<web::Json<VerifyPuzzleResultServiceOutput>, Box<dyn Error>>(web::Json(
-        VerifyPuzzleResultServiceOutput {
+    let is_valid = is_puzzle_result_valid(&input.solution);
+    Ok((
+        web::Json(VerifyPuzzleResultServiceOutput {
             success: is_valid,
             errors: None, // TODO: Expand error case
-        },
+        }),
+        StatusCode::OK,
     ))
 }

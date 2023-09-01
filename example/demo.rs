@@ -3,7 +3,6 @@ use actix_web::{
     get, http::StatusCode, post, web, App, Error, HttpResponse, HttpServer, Responder,
 };
 use fcaptcha::{
-    config::get,
     is_puzzle_result_valid,
     web::{build_puzzle_service, verify_puzzle_result_service},
 };
@@ -52,8 +51,7 @@ async fn demo_form(web::Form(input): web::Form<FormInput>) -> String {
     );
 
     // TODO: Instead of calling directly, post JSON over HTTP?
-    let api_key: String = get::<String>("API_KEY");
-    let is_valid = is_puzzle_result_valid(&input.frc_captcha_solution, api_key.as_bytes());
+    let is_valid = is_puzzle_result_valid(&input.frc_captcha_solution);
     format!(
         "Got: {:?}, result for captcha validation: {:?}",
         input, is_valid

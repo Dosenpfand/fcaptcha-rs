@@ -1,8 +1,7 @@
-use fcaptcha::{build_puzzle, get, is_puzzle_result_valid};
+use fcaptcha::{build_puzzle, is_puzzle_result_valid};
 
 fn main() {
     env_logger::init();
-    let api_key = get::<String>("API_KEY");
     let puzzle = build_puzzle("127.0.0.1");
     println!("Generated puzzle: {:?}", puzzle);
 
@@ -15,6 +14,6 @@ fn main() {
     AABIgQAAJAAAAJoPAQAlAAAAYlgAACYAAABIbAAAJwAAAGCwAAAoAAAAokkAACkAAADl6gAAKgAAAAo5AQArAAAA5igAAC\
     wAAADVfAAALQAAAHYfAAAuAAAALdYAAC8AAAC11gEAMAAAAN1dAAAxAAAAbyEAADIAAADjwAAA.\
     AgAA";
-    let is_solution_correct = is_puzzle_result_valid(solution, api_key.as_bytes());
+    let is_solution_correct = is_puzzle_result_valid(solution);
     println!("Is solution correct: {:?}", is_solution_correct);
 }

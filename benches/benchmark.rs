@@ -1,7 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fcaptcha::{
-    build_puzzle, get, verify_puzzle_result::is_puzzle_result_valid_with_ttl_and_timestamp,
-};
+use fcaptcha::{build_puzzle, get, verify_puzzle_result::is_puzzle_result_valid_with};
 
 fn build_puzzle_benchmark(c: &mut Criterion) {
     let ip_addresses = ["127.0.0.1", "192.168.0.0.1"];
@@ -21,7 +19,7 @@ fn build_puzzle_benchmark(c: &mut Criterion) {
 }
 
 fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
-    let api_key = get::<String>("API_KEY");
+    let secret_key = get::<Vec<u8>>("SECRET_KEY");
     let solution = "3761fae80ef01b32dcf892d099ca07f31db7a97311cce59529a4bae93a801db4.\
     ZO+cGAAAAAEAAAABAQwzegAAAAAAAAAAWlXMkohinFU=.\
     AAAAAIgRAAABAAAAzHwAAAIAAAAuDQAAAwAAAPsUAAAEAAAACaMAAAUAAADEGgAABgAAAEcSAAAHAAAAvz0AAAgAAABhpQ\
@@ -37,11 +35,11 @@ fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
         "is_puzzle_result_valid",
         |b: &mut criterion::Bencher<'_>| {
             b.iter(|| {
-                let is_v = is_puzzle_result_valid_with_ttl_and_timestamp(
+                let is_v = is_puzzle_result_valid_with(
                     black_box(solution),
-                    black_box(api_key.as_bytes()),
-                    black_box(0),
                     black_box(timestamp),
+                    black_box(0),
+                    black_box(&secret_key),
                 );
                 assert!(is_v)
             })
