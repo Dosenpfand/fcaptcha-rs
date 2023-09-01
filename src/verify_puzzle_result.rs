@@ -185,10 +185,7 @@ fn check_puzzle_reuse(
     Ok(())
 }
 
-fn check_puzzle_expiry(
-    puzzle: &[u8],
-    timestamp: u64,
-) -> Result<(), VerifyPuzzleResultError> {
+fn check_puzzle_expiry(puzzle: &[u8], timestamp: u64) -> Result<(), VerifyPuzzleResultError> {
     let timestamp_received = u32::from_be_bytes(
         puzzle[0..4]
             .try_into()
