@@ -78,6 +78,14 @@ Requires `perf` and `cargo-flamegraph`.
 CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --bench benchmark
 ```
 
+## Fuzz Test
+
+Requires `cargo-fuzz`.
+
+```
+cargo fuzz run fuzz_target_1
+```
+
 ## ToDo
 1. [ ] Resolve all `TODO`s in the code.
 2. [ ] Benchmark against reference implementation.
