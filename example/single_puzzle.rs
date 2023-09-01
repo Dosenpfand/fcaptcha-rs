@@ -1,4 +1,4 @@
-use fcaptcha::{build_puzzle, is_puzzle_result_valid};
+use fcaptcha::{build_puzzle, verify_puzzle_result};
 
 fn main() {
     env_logger::init();
@@ -14,6 +14,6 @@ fn main() {
     AABIgQAAJAAAAJoPAQAlAAAAYlgAACYAAABIbAAAJwAAAGCwAAAoAAAAokkAACkAAADl6gAAKgAAAAo5AQArAAAA5igAAC\
     wAAADVfAAALQAAAHYfAAAuAAAALdYAAC8AAAC11gEAMAAAAN1dAAAxAAAAbyEAADIAAADjwAAA.\
     AgAA";
-    let is_solution_correct = is_puzzle_result_valid(solution);
-    println!("Is solution correct: {:?}", is_solution_correct);
+    let result = verify_puzzle_result(solution);
+    println!("Verification result: {:?}", result);
 }

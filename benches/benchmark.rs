@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fcaptcha::{build_puzzle, get, verify_puzzle_result::is_puzzle_result_valid_with};
+use fcaptcha::{build_puzzle, get, verify_puzzle_result::verify_puzzle_result_with};
 
 fn build_puzzle_benchmark(c: &mut Criterion) {
     let ip_addresses = ["127.0.0.1", "192.168.0.0.1"];
@@ -35,13 +35,13 @@ fn is_puzzle_result_valid_benchmark(c: &mut Criterion) {
         "is_puzzle_result_valid",
         |b: &mut criterion::Bencher<'_>| {
             b.iter(|| {
-                let is_v = is_puzzle_result_valid_with(
+                let result = verify_puzzle_result_with(
                     black_box(solution),
                     black_box(timestamp),
                     black_box(0),
                     black_box(&secret_key),
                 );
-                assert!(is_v)
+                assert!(result.is_ok())
             })
         },
     );

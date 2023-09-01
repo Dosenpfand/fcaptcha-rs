@@ -5,7 +5,7 @@ use std::str;
 
 use crate::build_puzzle::build_puzzle;
 use crate::config::get;
-use crate::verify_puzzle_result::is_puzzle_result_valid;
+use crate::verify_puzzle_result::verify_puzzle_result;
 
 #[derive(Deserialize)]
 pub struct BuildPuzzleServiceInput {
@@ -87,12 +87,22 @@ pub async fn verify_puzzle_result_service(
     }
 
     info!("Got puzzle result verify request with {:?}", input);
-    let is_valid = is_puzzle_result_valid(&input.solution);
-    Ok((
-        web::Json(VerifyPuzzleResultServiceOutput {
-            success: is_valid,
-            errors: None, // TODO: Expand error case
-        }),
-        StatusCode::OK,
-    ))
+    let puzzle_result = verify_puzzle_result(&input.solution);
+
+    match puzzle_result {
+        Ok(_) => Ok((
+            web::Json(VerifyPuzzleResultServiceOutput {
+                success: true,
+                errors: None,
+            }),
+            StatusCode::OK,
+        )),
+        Err(_) => Ok((
+            web::Json(VerifyPuzzleResultServiceOutput {
+                success: false,
+                errors: None, // TODO: Add description
+            }),
+            StatusCode::OK,
+        )),
+    }
 }

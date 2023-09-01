@@ -673,6 +673,7 @@ dependencies = [
  "blake2",
  "config",
  "criterion",
+ "digest",
  "env_logger",
  "hex",
  "hmac",

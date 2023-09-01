@@ -2,12 +2,14 @@ use crate::config::get;
 use crate::util;
 use base64::{engine::general_purpose, Engine as _};
 use blake2::{digest::consts::U32, Blake2b, Digest};
+use digest::MacError;
 use hmac::{Hmac, Mac};
 use log::Level::Info;
 use sha2::Sha256;
 use std::collections::{HashMap, HashSet};
 use std::str;
 use std::sync::Mutex;
+use thiserror::Error;
 
 lazy_static! {
     // TODO: Empty maps periodically!
@@ -17,21 +19,32 @@ lazy_static! {
     static ref SECRET_KEY: Vec<u8> = get::<Vec<u8>>("SECRET_KEY");
 }
 
-pub fn is_puzzle_result_valid(solution: &str) -> bool {
-    is_puzzle_result_valid_with(
-        solution,
-        util::get_timestamp(),
-        *PUZZLE_TTL,
-        &*SECRET_KEY,
-    )
+#[derive(Error, Debug)]
+pub enum VerifyPuzzleResultError {
+    #[error("Signatures do not match.")]
+    SignatureMismatch(#[from] MacError),
+    #[error("Puzzle is reused.")]
+    PuzzleReuse,
+    #[error("Puzzle is expired.")]
+    PuzzleExpired,
+    #[error("Duplicate Solution.")]
+    DuplicateSolution,
+    #[error("Solution below threshold.")]
+    SolutionBelowThreshold,
+    #[error("Unknown error.")]
+    Unknown,
 }
 
-pub fn is_puzzle_result_valid_with(
+pub fn verify_puzzle_result(solution: &str) -> Result<(), VerifyPuzzleResultError> {
+    verify_puzzle_result_with(solution, util::get_timestamp(), *PUZZLE_TTL, &*SECRET_KEY)
+}
+
+pub fn verify_puzzle_result_with(
     solution: &str,
     current_timestamp: u64,
     puzzle_ttl: u64,
     secret_key: &[u8],
-) -> bool {
+) -> Result<(), VerifyPuzzleResultError> {
     let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
     let signature = hex::decode(solution_parts[0]).unwrap();
     let mut puzzle: [u8; 32] = [0; 32];
@@ -46,17 +59,7 @@ pub fn is_puzzle_result_valid_with(
     type HmacSha256 = Hmac<Sha256>;
     let mut macer = HmacSha256::new_from_slice(secret_key).unwrap();
     macer.update(&puzzle);
-    let verify_result = macer.verify_slice(&signature);
-
-    match verify_result {
-        Ok(_) => {
-            info!("Signature match");
-        }
-        Err(_) => {
-            info!("Signature mismatch");
-            return false;
-        }
-    }
+    macer.verify_slice(&signature)?;
 
     {
         let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();
@@ -67,7 +70,7 @@ pub fn is_puzzle_result_valid_with(
             Some(timestamp) => {
                 if current_timestamp - *timestamp < puzzle_ttl {
                     info!("Puzzle reuse with: {:?}", puzzle);
-                    return false;
+                    return Err(VerifyPuzzleResultError::PuzzleReuse);
                 } else {
                     info!("Expired puzzle reuse with: {:?}", puzzle);
                     *timestamp = current_timestamp;
@@ -91,7 +94,7 @@ pub fn is_puzzle_result_valid_with(
 
     if (expiry != 0) && (age > u64::from(expiry)) {
         info!("Expired puzzle, age: {:?}, expiry: {:?}", age, expiry);
-        return false;
+        return Err(VerifyPuzzleResultError::PuzzleExpired);
     }
 
     let difficulty = puzzle[15];
@@ -106,7 +109,7 @@ pub fn is_puzzle_result_valid_with(
 
         if seen_solutions.contains(current_solution) {
             info!("Duplicate solution found: {:?}", current_solution);
-            return false;
+            return Err(VerifyPuzzleResultError::DuplicateSolution);
         }
         seen_solutions.insert(current_solution);
 
@@ -126,7 +129,7 @@ pub fn is_puzzle_result_valid_with(
                 "Found invalid solution not below threshold: {:?} >= {:?}",
                 solution_leading, threshold
             );
-            return false;
+            return Err(VerifyPuzzleResultError::SolutionBelowThreshold);
         }
         info!(
             "Found one valid solution below threshold: {:?} < {:?}",
@@ -135,5 +138,5 @@ pub fn is_puzzle_result_valid_with(
     }
 
     info!("Puzzle solutions verified successfully for: {:?}", solution);
-    true
+    Ok(())
 }
