@@ -19,7 +19,7 @@ lazy_static! {
     static ref SECRET_KEY: Vec<u8> = get::<Vec<u8>>("SECRET_KEY");
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum VerifyPuzzleResultError {
     #[error("Signatures do not match.")]
     SignatureMismatch(#[from] MacError),
@@ -39,55 +39,49 @@ pub fn verify_puzzle_result(solution: &str) -> Result<(), VerifyPuzzleResultErro
     verify_puzzle_result_with(solution, util::get_timestamp(), *PUZZLE_TTL, &*SECRET_KEY)
 }
 
-pub fn verify_puzzle_result_with(
-    solution: &str,
-    current_timestamp: u64,
-    puzzle_ttl: u64,
+fn verify_signature(
     secret_key: &[u8],
+    puzzle: &[u8],
+    signature: &[u8],
 ) -> Result<(), VerifyPuzzleResultError> {
-    let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
-    let signature = hex::decode(solution_parts[0]).unwrap();
-    let mut puzzle: [u8; 32] = [0; 32];
-
-    info!("Trying to decode puzzle: {:?}", solution_parts[1]);
-    // TODO: Switch back to checked version?
-    // But needs 2 additional bytes: https://docs.rs/base64/latest/base64/fn.decoded_len_estimate.html
-    general_purpose::STANDARD
-        .decode_slice_unchecked(solution_parts[1], &mut puzzle)
-        .unwrap();
-
     type HmacSha256 = Hmac<Sha256>;
     let mut macer = HmacSha256::new_from_slice(secret_key).unwrap();
     macer.update(&puzzle);
     macer.verify_slice(&signature)?;
+    Ok(())
+}
 
-    {
-        let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();
+fn check_puzzle_reuse(
+    puzzle: &[u8],
+    puzzle_ttl: u64,
+    current_timestamp: u64,
+) -> Result<(), VerifyPuzzleResultError> {
+    let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();
 
-        let puzzle_option = map.get_mut(&puzzle.to_vec());
+    let puzzle_option = map.get_mut(&puzzle.to_vec());
 
-        match puzzle_option {
-            Some(timestamp) => {
-                if current_timestamp - *timestamp < puzzle_ttl {
-                    info!("Puzzle reuse with: {:?}", puzzle);
-                    return Err(VerifyPuzzleResultError::PuzzleReuse);
-                } else {
-                    info!("Expired puzzle reuse with: {:?}", puzzle);
-                    *timestamp = current_timestamp;
-                }
-            }
-            None => {
-                info!("New puzzle with: {:?}", puzzle);
-                map.insert(puzzle.to_vec(), current_timestamp);
+    match puzzle_option {
+        Some(timestamp) => {
+            if current_timestamp - *timestamp < puzzle_ttl {
+                info!("Puzzle reuse with: {:?}", puzzle);
+                return Err(VerifyPuzzleResultError::PuzzleReuse);
+            } else {
+                info!("Expired puzzle reuse with: {:?}", puzzle);
+                *timestamp = current_timestamp;
             }
         }
+        None => {
+            info!("New puzzle with: {:?}", puzzle);
+            map.insert(puzzle.to_vec(), current_timestamp);
+        }
     }
+    Ok(())
+}
 
-    if log_enabled!(Info) {
-        let diagnostics = general_purpose::STANDARD.decode(solution_parts[3]).unwrap();
-        info!("Got diagnostics: {:?}", diagnostics);
-    }
-
+fn check_puzzle_expiry(
+    puzzle: &[u8],
+    current_timestamp: u64,
+) -> Result<(), VerifyPuzzleResultError> {
     let timestamp_received = u32::from_be_bytes(puzzle[0..4].try_into().unwrap());
     let age: u64 = current_timestamp - u64::from(timestamp_received);
     let expiry: u32 = u32::from(puzzle[13]) * 300;
@@ -96,16 +90,20 @@ pub fn verify_puzzle_result_with(
         info!("Expired puzzle, age: {:?}, expiry: {:?}", age, expiry);
         return Err(VerifyPuzzleResultError::PuzzleExpired);
     }
+    Ok(())
+}
 
+fn verify_solutions(puzzle: &[u8], solutions: &str) -> Result<(), VerifyPuzzleResultError> {
     let difficulty = puzzle[15];
     let solutions_count = puzzle[14];
     // TODO: Why use floats?
     let threshold: u32 = (2_f32.powf(255.999 - f32::from(difficulty)) / 8_f32).floor() as u32;
     let mut seen_solutions = HashSet::<&[u8]>::new();
-    let solutions = general_purpose::STANDARD.decode(solution_parts[2]).unwrap();
+    let solutions_decoded = general_purpose::STANDARD.decode(solutions).unwrap();
+
     for solution_idx in 0..solutions_count {
         let current_start_idx = usize::from(solution_idx);
-        let current_solution = &solutions[current_start_idx..current_start_idx + 8];
+        let current_solution = &solutions_decoded[current_start_idx..current_start_idx + 8];
 
         if seen_solutions.contains(current_solution) {
             info!("Duplicate solution found: {:?}", current_solution);
@@ -136,7 +134,83 @@ pub fn verify_puzzle_result_with(
             solution_leading, threshold
         );
     }
+    Ok(())
+}
+
+fn process_diagnostics(diagnostics: &str) {
+    if log_enabled!(Info) {
+        let diagnostics = general_purpose::STANDARD.decode(diagnostics).unwrap();
+        info!("Got diagnostics: {:?}", diagnostics);
+    }
+}
+
+pub fn verify_puzzle_result_with(
+    solution: &str,
+    current_timestamp: u64,
+    puzzle_ttl: u64,
+    secret_key: &[u8],
+) -> Result<(), VerifyPuzzleResultError> {
+    let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
+    let signature = hex::decode(solution_parts[0]).unwrap();
+    let mut puzzle: [u8; 32] = [0; 32];
+
+    info!("Trying to decode puzzle: {:?}", solution_parts[1]);
+    // TODO: Switch back to checked version?
+    // But needs 2 additional bytes: https://docs.rs/base64/latest/base64/fn.decoded_len_estimate.html
+    general_purpose::STANDARD
+        .decode_slice_unchecked(solution_parts[1], &mut puzzle)
+        .unwrap();
+
+    verify_signature(secret_key, &puzzle, &signature)?;
+    check_puzzle_reuse(&puzzle, puzzle_ttl, current_timestamp)?;
+    check_puzzle_expiry(&puzzle, current_timestamp)?;
+    process_diagnostics(&solution_parts[3]);
+    verify_solutions(&puzzle, &solution_parts[2])?;
 
     info!("Puzzle solutions verified successfully for: {:?}", solution);
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_verify_puzzle_result_with_primitive_success() {
+        let secret_key = "NOT-A-SECRET-KEY".as_bytes();
+        let solution = "3761fae80ef01b32dcf892d099ca07f31db7a97311cce59529a4bae93a801db4.\
+        ZO+cGAAAAAEAAAABAQwzegAAAAAAAAAAWlXMkohinFU=.\
+        AAAAAIgRAAABAAAAzHwAAAIAAAAuDQAAAwAAAPsUAAAEAAAACaMAAAUAAADEGgAABgAAAEcSAAAHAAAAvz0AAAgAAABhpQ\
+        AACQAAAAstAAAKAAAA2CYAAAsAAADtNgEADAAAAC0CAAANAAAAFp8AAA4AAABdcgAADwAAAL6JAAAQAAAALYkAABEAAAD0\
+        vAEAEgAAAPxaAAATAAAAvFAAABQAAAAA7wEAFQAAAPoWAAAWAAAAGoEAABcAAACovwAAGAAAAGXcAAAZAAAAP2sBABoAAA\
+        D4BQAAGwAAAE9nAAAcAAAAFcQBAB0AAABQCgEAHgAAAB0FAAAfAAAAe9EAACAAAAClywAAIQAAAFYPAAAiAAAAtjcAACMA\
+        AABIgQAAJAAAAJoPAQAlAAAAYlgAACYAAABIbAAAJwAAAGCwAAAoAAAAokkAACkAAADl6gAAKgAAAAo5AQArAAAA5igAAC\
+        wAAADVfAAALQAAAHYfAAAuAAAALdYAAC8AAAC11gEAMAAAAN1dAAAxAAAAbyEAADIAAADjwAAA.\
+        AgAA";
+        let timestamp: u64 = 1693424664;
+
+        let result = verify_puzzle_result_with(solution, timestamp, 0, &secret_key);
+        assert!(result.is_ok())
+    }
+
+    #[test]
+    fn test_verify_puzzle_result_with_primitive_signature_error() {
+        let secret_key = "THE-WRONG-SECRET-KEY".as_bytes();
+        let solution = "3761fae80ef01b32dcf892d099ca07f31db7a97311cce59529a4bae93a801db4.\
+        ZO+cGAAAAAEAAAABAQwzegAAAAAAAAAAWlXMkohinFU=.\
+        AAAAAIgRAAABAAAAzHwAAAIAAAAuDQAAAwAAAPsUAAAEAAAACaMAAAUAAADEGgAABgAAAEcSAAAHAAAAvz0AAAgAAABhpQ\
+        AACQAAAAstAAAKAAAA2CYAAAsAAADtNgEADAAAAC0CAAANAAAAFp8AAA4AAABdcgAADwAAAL6JAAAQAAAALYkAABEAAAD0\
+        vAEAEgAAAPxaAAATAAAAvFAAABQAAAAA7wEAFQAAAPoWAAAWAAAAGoEAABcAAACovwAAGAAAAGXcAAAZAAAAP2sBABoAAA\
+        D4BQAAGwAAAE9nAAAcAAAAFcQBAB0AAABQCgEAHgAAAB0FAAAfAAAAe9EAACAAAAClywAAIQAAAFYPAAAiAAAAtjcAACMA\
+        AABIgQAAJAAAAJoPAQAlAAAAYlgAACYAAABIbAAAJwAAAGCwAAAoAAAAokkAACkAAADl6gAAKgAAAAo5AQArAAAA5igAAC\
+        wAAADVfAAALQAAAHYfAAAuAAAALdYAAC8AAAC11gEAMAAAAN1dAAAxAAAAbyEAADIAAADjwAAA.\
+        AgAA";
+        let timestamp: u64 = 1693424664;
+
+        let result = verify_puzzle_result_with(solution, timestamp, 0, &secret_key);
+        assert_eq!(
+            result,
+            Err(VerifyPuzzleResultError::SignatureMismatch(MacError))
+        )
+    }
 }

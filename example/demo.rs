@@ -54,6 +54,7 @@ async fn demo_form(web::Form(input): web::Form<FormInput>) -> String {
     let result = verify_puzzle_result(&input.frc_captcha_solution);
     format!(
         "Got: {:?}, result for captcha validation: {:?}",
-        input, result.is_ok()
+        input,
+        result.is_ok()
     )
 }
