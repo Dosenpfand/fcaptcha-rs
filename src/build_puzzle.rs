@@ -8,6 +8,7 @@ use sha2::Sha256;
 use std::collections::HashMap;
 use std::str;
 use std::sync::{Mutex, PoisonError};
+use std::time::SystemTimeError;
 use thiserror::Error;
 
 lazy_static! {
@@ -28,6 +29,8 @@ pub enum BuildPuzzleError {
     DataAccess,
     #[error("Data conversion failed.")]
     Conversion,
+    #[error("Failed to get the time.")]
+    TimeError(#[from] SystemTimeError),
     #[error("Unknown error.")]
     Unknown,
 }
@@ -120,9 +123,9 @@ fn construct_puzzle_data(
 }
 
 pub fn build_puzzle(ip_address: &str) -> Result<String, BuildPuzzleError> {
-    let timestamp = util::get_timestamp();
+    let timestamp = util::get_timestamp()?;
     let nonce: u64 = rand::random();
-    build_puzzle_with(ip_address, timestamp, nonce, &*SECRET_KEY, *ACCESS_TTL)
+    build_puzzle_with(ip_address, timestamp, nonce, &SECRET_KEY, *ACCESS_TTL)
 }
 
 pub fn build_puzzle_with(

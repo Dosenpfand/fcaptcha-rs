@@ -1,14 +1,17 @@
 use crate::config::get;
 use crate::util;
+use base64::DecodeError;
 use base64::{engine::general_purpose, Engine as _};
 use blake2::{digest::consts::U32, Blake2b, Digest};
-use digest::MacError;
+use digest::{InvalidLength, MacError};
+use hex::FromHexError;
 use hmac::{Hmac, Mac};
 use log::Level::Info;
 use sha2::Sha256;
 use std::collections::{HashMap, HashSet};
 use std::str;
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
+use std::time::SystemTimeError;
 use thiserror::Error;
 
 lazy_static! {
@@ -21,6 +24,8 @@ lazy_static! {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum VerifyPuzzleResultError {
+    #[error("Signature key invalid.")]
+    SignatureKeyInvalid(#[from] InvalidLength),
     #[error("Signatures do not match.")]
     SignatureMismatch(#[from] MacError),
     #[error("Puzzle is reused.")]
@@ -31,12 +36,35 @@ pub enum VerifyPuzzleResultError {
     DuplicateSolution,
     #[error("Solution below threshold.")]
     SolutionBelowThreshold,
+    #[error("Data access failed.")]
+    DataAccess,
+    #[error("Data conversion failed.")]
+    Conversion,
+    #[error("Decoding hex failed.")]
+    DecodeHex(#[from] FromHexError),
+    #[error("Decoding base64 failed.")]
+    DecodeBas64(#[from] DecodeError),
+    #[error("Failed to get the time.")]
+    TimeError,
     #[error("Unknown error.")]
     Unknown,
 }
 
+impl<T> From<PoisonError<T>> for VerifyPuzzleResultError {
+    fn from(_err: PoisonError<T>) -> Self {
+        Self::DataAccess
+    }
+}
+
+impl From<SystemTimeError> for VerifyPuzzleResultError {
+    fn from(_err: SystemTimeError) -> Self {
+        Self::TimeError
+    }
+}
+
 pub fn verify_puzzle_result(solution: &str) -> Result<(), VerifyPuzzleResultError> {
-    verify_puzzle_result_with(solution, util::get_timestamp(), *PUZZLE_TTL, &*SECRET_KEY)
+    let timestamp = util::get_timestamp()?;
+    verify_puzzle_result_with(solution, timestamp, *PUZZLE_TTL, &SECRET_KEY)
 }
 
 fn verify_signature(
@@ -45,9 +73,9 @@ fn verify_signature(
     signature: &[u8],
 ) -> Result<(), VerifyPuzzleResultError> {
     type HmacSha256 = Hmac<Sha256>;
-    let mut macer = HmacSha256::new_from_slice(secret_key).unwrap();
-    macer.update(&puzzle);
-    macer.verify_slice(&signature)?;
+    let mut macer = HmacSha256::new_from_slice(secret_key)?;
+    macer.update(puzzle);
+    macer.verify_slice(signature)?;
     Ok(())
 }
 
@@ -56,7 +84,7 @@ fn check_puzzle_reuse(
     puzzle_ttl: u64,
     current_timestamp: u64,
 ) -> Result<(), VerifyPuzzleResultError> {
-    let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock().unwrap();
+    let mut map = VERIFIED_PUZZLE_TO_TIMESTAMP_MAP.lock()?;
 
     let puzzle_option = map.get_mut(&puzzle.to_vec());
 
@@ -82,7 +110,11 @@ fn check_puzzle_expiry(
     puzzle: &[u8],
     current_timestamp: u64,
 ) -> Result<(), VerifyPuzzleResultError> {
-    let timestamp_received = u32::from_be_bytes(puzzle[0..4].try_into().unwrap());
+    let timestamp_received = u32::from_be_bytes(
+        puzzle[0..4]
+            .try_into()
+            .map_err(|_| VerifyPuzzleResultError::Conversion)?,
+    );
     let age: u64 = current_timestamp - u64::from(timestamp_received);
     let expiry: u32 = u32::from(puzzle[13]) * 300;
 
@@ -99,7 +131,7 @@ fn verify_solutions(puzzle: &[u8], solutions: &str) -> Result<(), VerifyPuzzleRe
     // TODO: Why use floats?
     let threshold: u32 = (2_f32.powf(255.999 - f32::from(difficulty)) / 8_f32).floor() as u32;
     let mut seen_solutions = HashSet::<&[u8]>::new();
-    let solutions_decoded = general_purpose::STANDARD.decode(solutions).unwrap();
+    let solutions_decoded = general_purpose::STANDARD.decode(solutions)?;
 
     for solution_idx in 0..solutions_count {
         let current_start_idx = usize::from(solution_idx);
@@ -112,7 +144,7 @@ fn verify_solutions(puzzle: &[u8], solutions: &str) -> Result<(), VerifyPuzzleRe
         seen_solutions.insert(current_solution);
 
         let mut full_solution: [u8; 128] = [0; 128];
-        full_solution[0..32].copy_from_slice(&puzzle);
+        full_solution[0..32].copy_from_slice(puzzle);
         full_solution[120..128].copy_from_slice(current_solution);
         info!("Full solution: {:?}", full_solution);
 
@@ -120,7 +152,11 @@ fn verify_solutions(puzzle: &[u8], solutions: &str) -> Result<(), VerifyPuzzleRe
         let hash = Blake2b256::digest(full_solution);
         info!("Solution hash: {:?}", full_solution);
 
-        let solution_leading = u32::from_le_bytes(hash[0..4].try_into().unwrap());
+        let solution_leading = u32::from_le_bytes(
+            hash[0..4]
+                .try_into()
+                .map_err(|_| VerifyPuzzleResultError::Conversion)?,
+        );
 
         if solution_leading >= threshold {
             info!(
@@ -137,11 +173,12 @@ fn verify_solutions(puzzle: &[u8], solutions: &str) -> Result<(), VerifyPuzzleRe
     Ok(())
 }
 
-fn process_diagnostics(diagnostics: &str) {
+fn process_diagnostics(diagnostics: &str) -> Result<(), VerifyPuzzleResultError> {
     if log_enabled!(Info) {
-        let diagnostics = general_purpose::STANDARD.decode(diagnostics).unwrap();
+        let diagnostics = general_purpose::STANDARD.decode(diagnostics)?;
         info!("Got diagnostics: {:?}", diagnostics);
     }
+    Ok(())
 }
 
 pub fn verify_puzzle_result_with(
@@ -151,21 +188,19 @@ pub fn verify_puzzle_result_with(
     secret_key: &[u8],
 ) -> Result<(), VerifyPuzzleResultError> {
     let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
-    let signature = hex::decode(solution_parts[0]).unwrap();
+    let signature = hex::decode(solution_parts[0])?;
     let mut puzzle: [u8; 32] = [0; 32];
 
     info!("Trying to decode puzzle: {:?}", solution_parts[1]);
     // TODO: Switch back to checked version?
     // But needs 2 additional bytes: https://docs.rs/base64/latest/base64/fn.decoded_len_estimate.html
-    general_purpose::STANDARD
-        .decode_slice_unchecked(solution_parts[1], &mut puzzle)
-        .unwrap();
+    general_purpose::STANDARD.decode_slice_unchecked(solution_parts[1], &mut puzzle)?;
 
     verify_signature(secret_key, &puzzle, &signature)?;
     check_puzzle_reuse(&puzzle, puzzle_ttl, current_timestamp)?;
     check_puzzle_expiry(&puzzle, current_timestamp)?;
-    process_diagnostics(&solution_parts[3]);
-    verify_solutions(&puzzle, &solution_parts[2])?;
+    process_diagnostics(solution_parts[3])?;
+    verify_solutions(&puzzle, solution_parts[2])?;
 
     info!("Puzzle solutions verified successfully for: {:?}", solution);
     Ok(())

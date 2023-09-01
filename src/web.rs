@@ -51,13 +51,15 @@ pub async fn build_puzzle_service(
     req: HttpRequest,
     input: web::Query<BuildPuzzleServiceInput>,
 ) -> Result<impl Responder> {
-    if input.sitekey.as_bytes() != *API_KEY {
+    let con_info = req.connection_info();
+    let remote_address = con_info.realip_remote_addr();
+    if (input.sitekey.as_bytes() != *API_KEY) || (remote_address.is_none()) {
         return Ok((
             web::Json(BuildPuzzleServiceOutput::new("".to_string())),
             StatusCode::FORBIDDEN,
         ));
     }
-    let con_info = req.connection_info();
+
     let puzzle_result = build_puzzle(con_info.realip_remote_addr().unwrap());
     match puzzle_result {
         Ok(puzzle) => Ok((
