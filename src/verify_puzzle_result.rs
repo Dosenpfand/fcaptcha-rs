@@ -14,6 +14,10 @@ use std::sync::{Mutex, PoisonError};
 use std::time::SystemTimeError;
 use thiserror::Error;
 
+const SOLUTION_PARTS_COUNT: usize = 4;
+const PUZZLE_BIN_LEN_BYTE: usize = 32;
+const PUZZLE_B64_LEN_BYTE: usize = 44;
+
 lazy_static! {
     // TODO: Empty maps periodically!
     static ref VERIFIED_PUZZLE_TO_TIMESTAMP_MAP: Mutex<HashMap<Vec<u8>, u64>> =
@@ -46,6 +50,8 @@ pub enum VerifyPuzzleResultError {
     DecodeBas64(#[from] DecodeError),
     #[error("Failed to get the time.")]
     TimeError,
+    #[error("Input malformed")]
+    InputMalformed,
     #[error("Unknown error.")]
     Unknown,
 }
@@ -187,14 +193,22 @@ pub fn verify_puzzle_result_with(
     puzzle_ttl: u64,
     secret_key: &[u8],
 ) -> Result<(), VerifyPuzzleResultError> {
-    let solution_parts: Vec<&str> = solution.splitn(4, '.').collect();
+    let solution_parts: Vec<&str> = solution.splitn(SOLUTION_PARTS_COUNT, '.').collect();
+
+    if solution_parts.len() != SOLUTION_PARTS_COUNT {
+        return Err(VerifyPuzzleResultError::InputMalformed);
+    }
+
     let signature = hex::decode(solution_parts[0])?;
-    let mut puzzle: [u8; 32] = [0; 32];
 
     info!("Trying to decode puzzle: {:?}", solution_parts[1]);
-    // TODO: Switch back to checked version?
-    // But needs 2 additional bytes: https://docs.rs/base64/latest/base64/fn.decoded_len_estimate.html
-    general_purpose::STANDARD.decode_slice_unchecked(solution_parts[1], &mut puzzle)?;
+    if solution_parts[1].len() != PUZZLE_B64_LEN_BYTE {
+        return Err(VerifyPuzzleResultError::InputMalformed);
+    }
+    // 2 additional bytes needed: https://docs.rs/base64/latest/base64/fn.decoded_len_estimate.html
+    let mut puzzle_padded: [u8; PUZZLE_BIN_LEN_BYTE + 2] = [0; PUZZLE_BIN_LEN_BYTE + 2];
+    general_purpose::STANDARD.decode_slice_unchecked(solution_parts[1], &mut puzzle_padded)?;
+    let puzzle = &puzzle_padded[..PUZZLE_BIN_LEN_BYTE];
 
     verify_signature(secret_key, &puzzle, &signature)?;
     check_puzzle_reuse(&puzzle, puzzle_ttl, current_timestamp)?;
