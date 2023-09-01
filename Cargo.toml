@@ -26,7 +26,9 @@ default = ["web"]
 web = []
 
 [dependencies]
-actix-web = "4.3.1"
+actix-web = { version = "4.3.1", default-features = false, features = [
+    "macros",
+] }
 base64 = "0.21.3"
 hex = "0.4.3"
 lazy_static = "1.4.0"
@@ -36,7 +38,7 @@ env_logger = "0.9.0"
 serde = { version = "1.0.188", features = ["derive"] }
 blake2 = "0.10.6"
 actix-cors = "0.6.4"
-config = "0.13.3"
+config = { version = "0.13.3", default-features = false }
 hmac = "0.12.1"
 sha2 = "0.10.7"
 thiserror = "1.0.47"
