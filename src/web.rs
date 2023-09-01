@@ -1,3 +1,5 @@
+#![cfg(feature = "web")]
+
 use actix_web::http::StatusCode;
 use actix_web::{get, post, web, HttpRequest, Responder, Result};
 use serde::{Deserialize, Serialize};

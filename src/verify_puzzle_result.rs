@@ -136,11 +136,11 @@ pub fn verify_puzzle_result_with(
     general_purpose::STANDARD.decode_slice_unchecked(solution_parts[1], &mut puzzle_padded)?;
     let puzzle = &puzzle_padded[..PUZZLE_BIN_LEN_BYTE];
 
-    verify_signature(secret_key, &puzzle, &signature)?;
-    check_puzzle_reuse(&puzzle, puzzle_ttl_secs, timestamp)?;
-    check_puzzle_expiry(&puzzle, timestamp)?;
+    verify_signature(secret_key, puzzle, &signature)?;
+    check_puzzle_reuse(puzzle, puzzle_ttl_secs, timestamp)?;
+    check_puzzle_expiry(puzzle, timestamp)?;
     process_diagnostics(solution_parts[3])?;
-    verify_solutions(&puzzle, solution_parts[2])?;
+    verify_solutions(puzzle, solution_parts[2])?;
 
     info!("Puzzle solutions verified successfully for: {:?}", solution);
     Ok(())
