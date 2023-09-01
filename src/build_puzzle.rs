@@ -15,6 +15,7 @@ lazy_static! {
     static ref IP_ADDRESS_TO_ACCESS_MAP: Mutex<HashMap<String, Access>> =
         Mutex::new(HashMap::new());
     static ref ACCESS_TTL: u64 = get::<u64>("ACCESS_TTL");
+    static ref SECRET_KEY: Vec<u8> = get::<Vec<u8>>("SECRET_KEY");
 }
 
 #[derive(Error, Debug)]
@@ -44,12 +45,12 @@ struct Access {
 }
 
 impl Access {
-    fn get(ip_address: &str, timestamp: u64) -> Result<Access, BuildPuzzleError> {
+    fn get(ip_address: &str, timestamp: u64, access_ttl: u64) -> Result<Access, BuildPuzzleError> {
         let mut lock = IP_ADDRESS_TO_ACCESS_MAP.lock()?;
         Ok(lock
             .entry(ip_address.to_string())
             .and_modify(|access| {
-                if timestamp - access.last_access > *ACCESS_TTL {
+                if timestamp - access.last_access > access_ttl {
                     access.count = 1;
                 } else {
                     access.count += 1;
@@ -118,19 +119,20 @@ fn construct_puzzle_data(
     Ok(())
 }
 
-pub fn build_puzzle(key: &[u8], ip_address: &str) -> Result<String, BuildPuzzleError> {
+pub fn build_puzzle(ip_address: &str) -> Result<String, BuildPuzzleError> {
     let timestamp = util::get_timestamp();
     let nonce: u64 = rand::random();
-    build_puzzle_with_timestamp_and_nonce(key, ip_address, timestamp, nonce)
+    build_puzzle_with(ip_address, timestamp, nonce, &*SECRET_KEY, *ACCESS_TTL)
 }
 
-pub fn build_puzzle_with_timestamp_and_nonce(
-    key: &[u8],
+pub fn build_puzzle_with(
     ip_address: &str,
     timestamp: u64,
     nonce: u64,
+    secret_key: &[u8],
+    access_ttl: u64,
 ) -> Result<String, BuildPuzzleError> {
-    let access = Access::get(ip_address, timestamp)?;
+    let access = Access::get(ip_address, timestamp, access_ttl)?;
     let scaling = Scaling::get(access.count);
 
     info!(
@@ -143,7 +145,7 @@ pub fn build_puzzle_with_timestamp_and_nonce(
 
     // HMAC data
     type HmacSha256 = Hmac<Sha256>;
-    let mut macer = HmacSha256::new_from_slice(key)?;
+    let mut macer = HmacSha256::new_from_slice(secret_key)?;
     macer.update(&puzzle_data);
     let hmac = macer.finalize().into_bytes();
 
@@ -168,14 +170,15 @@ mod tests {
 
     #[test]
     fn test_build_puzzle_with_timestamp_and_nonce() -> Result<(), BuildPuzzleError> {
-        let key = "TEST-KEY".as_bytes();
+        let secret_key = "TEST-KEY".as_bytes();
         let ip_address = "127.0.0.1";
         let timestamp = 1693469848;
         let nonce = 0x1122334455667788;
         let expected_puzzle = "86505156a95e735652e7fd6d9eaaa9e5f839fc0a886268bebf5b8d2ad1038df5.\
         ZPBMmAAAAAEAAAABAQwzegAAAAAAAAAAESIzRFVmd4g=";
+        let access_ttl = 1800;
 
-        let puzzle = build_puzzle_with_timestamp_and_nonce(key, ip_address, timestamp, nonce)?;
+        let puzzle = build_puzzle_with(ip_address, timestamp, nonce, secret_key, access_ttl)?;
 
         assert_eq!(expected_puzzle, puzzle);
         Ok(())
@@ -185,7 +188,8 @@ mod tests {
     fn test_get_access_first() -> Result<(), BuildPuzzleError> {
         let ip_address: &str = "192.168.0.1";
         let timestamp = 1234_u64;
-        let access = Access::get(ip_address, timestamp)?;
+        let access_ttl = 1800;
+        let access = Access::get(ip_address, timestamp, access_ttl)?;
         assert!(access.count == 1);
         assert!(access.last_access == timestamp);
         Ok(())
@@ -195,9 +199,10 @@ mod tests {
     fn test_get_access_second() -> Result<(), BuildPuzzleError> {
         let ip_address = "192.168.0.2";
         let timestamp: u64 = 1234_u64;
-        Access::get(ip_address, timestamp)?;
+        let access_ttl = 1800;
+        Access::get(ip_address, timestamp, access_ttl)?;
         let timestamp: u64 = 1235_u64;
-        let access = Access::get(ip_address, timestamp)?;
+        let access = Access::get(ip_address, timestamp, access_ttl)?;
         assert_eq!(access.count, 2);
         assert_eq!(access.last_access, timestamp);
         Ok(())
@@ -207,9 +212,10 @@ mod tests {
     fn test_get_access_second_within_ttl() -> Result<(), BuildPuzzleError> {
         let ip_address = "192.168.0.3";
         let timestamp: u64 = 1234_u64;
-        Access::get(ip_address, timestamp)?;
+        let access_ttl = 1800;
+        Access::get(ip_address, timestamp, access_ttl)?;
         let timestamp = 1234_u64 + *ACCESS_TTL;
-        let access = Access::get(ip_address, timestamp)?;
+        let access = Access::get(ip_address, timestamp, access_ttl)?;
         assert_eq!(access.count, 2);
         assert_eq!(access.last_access, timestamp);
         Ok(())
@@ -219,9 +225,10 @@ mod tests {
     fn test_get_access_second_after_ttl() -> Result<(), BuildPuzzleError> {
         let ip_address = "192.168.0.4";
         let timestamp: u64 = 1234_u64;
-        Access::get(ip_address, timestamp)?;
+        let access_ttl = 1800;
+        Access::get(ip_address, timestamp, access_ttl)?;
         let timestamp = 1234_u64 + *ACCESS_TTL + 1;
-        let access = Access::get(ip_address, timestamp)?;
+        let access = Access::get(ip_address, timestamp, access_ttl)?;
         assert_eq!(access.count, 1);
         assert_eq!(access.last_access, timestamp);
         Ok(())

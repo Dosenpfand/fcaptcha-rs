@@ -45,7 +45,6 @@ struct VerifyPuzzleResultServiceOutput {
 
 lazy_static! {
     static ref API_KEY: String = get::<String>("API_KEY");
-    static ref SECRET_KEY: String = get::<String>("SECRET_KEY");
 }
 
 #[get("/build-puzzle")]
@@ -60,10 +59,7 @@ pub async fn build_puzzle_service(
         ));
     }
     let con_info = req.connection_info();
-    let puzzle_result = build_puzzle(
-        SECRET_KEY.as_bytes(),
-        con_info.realip_remote_addr().unwrap(),
-    );
+    let puzzle_result = build_puzzle(con_info.realip_remote_addr().unwrap());
     match puzzle_result {
         Ok(puzzle) => Ok((
             web::Json(BuildPuzzleServiceOutput::new(puzzle)),

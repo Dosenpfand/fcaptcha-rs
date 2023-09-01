@@ -2,9 +2,8 @@ use fcaptcha::{build_puzzle, get, is_puzzle_result_valid};
 
 fn main() {
     env_logger::init();
-    let secret_key = get::<String>("SECRET_KEY");
     let api_key = get::<String>("API_KEY");
-    let puzzle = build_puzzle(secret_key.as_bytes(), "127.0.0.1");
+    let puzzle = build_puzzle("127.0.0.1");
     println!("Generated puzzle: {:?}", puzzle);
 
     let solution = "3761fae80ef01b32dcf892d099ca07f31db7a97311cce59529a4bae93a801db4.\

@@ -4,7 +4,6 @@ use fcaptcha::{
 };
 
 fn build_puzzle_benchmark(c: &mut Criterion) {
-    let api_key = "b6db8801-4b39-4516-bd74-5eed7d7433a5".as_bytes();
     let ip_addresses = ["127.0.0.1", "192.168.0.0.1"];
 
     let mut group = c.benchmark_group("build_puzzle");
@@ -14,7 +13,7 @@ fn build_puzzle_benchmark(c: &mut Criterion) {
             BenchmarkId::from_parameter(ip_address),
             ip_address,
             |b, ip_address| {
-                b.iter(|| build_puzzle(api_key, &ip_address));
+                b.iter(|| build_puzzle(&ip_address));
             },
         );
     }
