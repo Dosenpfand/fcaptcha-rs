@@ -9,6 +9,7 @@ use hmac::{Hmac, Mac};
 use log::Level::Info;
 use sha2::Sha256;
 use std::collections::{HashMap, HashSet};
+use displaydoc::Display;
 use std::str;
 use std::sync::{Mutex, PoisonError};
 use std::time::SystemTimeError;
@@ -26,33 +27,34 @@ lazy_static! {
     static ref SECRET_KEY: Vec<u8> = get::<Vec<u8>>("SECRET_KEY");
 }
 
-#[derive(Error, Debug, PartialEq)]
+/// Describes an error that occurred during verifying a puzzle result.
+#[derive(Display, Error, Debug, PartialEq)]
 pub enum VerifyPuzzleResultError {
-    #[error("Signature key invalid.")]
+    /// Signature key invalid.
     SignatureKeyInvalid(#[from] InvalidLength),
-    #[error("Signatures do not match.")]
+    /// Signatures do not match.
     SignatureMismatch(#[from] MacError),
-    #[error("Puzzle is reused.")]
+    /// Puzzle is reused.
     PuzzleReuse,
-    #[error("Puzzle is expired.")]
+    /// Puzzle is expired.
     PuzzleExpired,
-    #[error("Duplicate Solution.")]
+    /// Duplicate Solution.
     DuplicateSolution,
-    #[error("Solution below threshold.")]
+    /// Solution below threshold.
     SolutionBelowThreshold,
-    #[error("Data access failed.")]
+    /// Data access failed.
     DataAccess,
-    #[error("Data conversion failed.")]
+    /// Data conversion failed.
     Conversion,
-    #[error("Decoding hex failed.")]
+    /// Decoding hex failed.
     DecodeHex(#[from] FromHexError),
-    #[error("Decoding base64 failed.")]
+    /// Decoding base64 failed.
     DecodeBas64(#[from] DecodeError),
-    #[error("Failed to get the time.")]
+    /// Failed to get the time.
     TimeError,
-    #[error("Input malformed")]
+    /// Input malformed
     InputMalformed,
-    #[error("Unknown error.")]
+    /// Unknown error.
     Unknown,
 }
 

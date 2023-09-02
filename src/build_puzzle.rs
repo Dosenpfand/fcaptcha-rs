@@ -3,6 +3,7 @@ use crate::util;
 use base64::EncodeSliceError;
 use base64::{engine::general_purpose, Engine as _};
 use blake2::digest::InvalidLength;
+use displaydoc::Display;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use std::collections::HashMap;
@@ -19,19 +20,20 @@ lazy_static! {
     static ref SECRET_KEY: Vec<u8> = get::<Vec<u8>>("SECRET_KEY");
 }
 
-#[derive(Error, Debug)]
+/// Describes an error that occurred during building a puzzle.
+#[derive(Display, Error, Debug)]
 pub enum BuildPuzzleError {
-    #[error("Encoding failed.")]
+    /// Encoding failed.
     Encoding(#[from] EncodeSliceError),
-    #[error("Hashing failed.")]
+    /// Hashing failed.
     Hashing(#[from] InvalidLength),
-    #[error("Data access failed.")]
+    /// Data access failed.
     DataAccess,
-    #[error("Data conversion failed.")]
+    /// Data conversion failed.
     Conversion,
-    #[error("Failed to get the time.")]
+    /// Failed to get the time.
     TimeError(#[from] SystemTimeError),
-    #[error("Unknown error.")]
+    /// Unknown error.
     Unknown,
 }
 

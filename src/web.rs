@@ -9,6 +9,7 @@ use crate::build_puzzle::build_puzzle;
 use crate::config::get;
 use crate::verify_puzzle_result::verify_puzzle_result;
 
+/// An input to the puzzle builder web service.
 #[derive(Deserialize)]
 pub struct BuildPuzzleServiceInput {
     sitekey: String,
@@ -32,6 +33,7 @@ impl BuildPuzzleServiceOutput {
     }
 }
 
+/// An input to the puzzle verification web service.
 #[derive(Deserialize, Debug)]
 pub struct VerifyPuzzleResultServiceInput {
     solution: String,
@@ -48,6 +50,7 @@ lazy_static! {
     static ref API_KEY: Vec<u8> = get::<Vec<u8>>("API_KEY");
 }
 
+/// A web service that serves puzzles to be solved.
 #[get("/build-puzzle")]
 pub async fn build_puzzle_service(
     req: HttpRequest,
@@ -76,6 +79,7 @@ pub async fn build_puzzle_service(
     }
 }
 
+/// A web service that verifies solutions to a puzzle.
 #[post("/verify-puzzle-result")]
 pub async fn verify_puzzle_result_service(
     input: web::Json<VerifyPuzzleResultServiceInput>,

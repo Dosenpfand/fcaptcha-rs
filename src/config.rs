@@ -1,7 +1,7 @@
 use config::Config;
 
 lazy_static! {
-    pub static ref CONFIG: Config = Config::builder()
+    static ref CONFIG: Config = Config::builder()
         .set_default("BIND_ADDRESS", "0.0.0.0")
         .unwrap()
         .set_default("BIND_PORT", 8080)
@@ -19,6 +19,7 @@ lazy_static! {
         .unwrap();
 }
 
+/// Get a configuration element.
 pub fn get<'a, T: serde::Deserialize<'a>>(key: &str) -> T {
     CONFIG.get::<T>(key).unwrap()
 }

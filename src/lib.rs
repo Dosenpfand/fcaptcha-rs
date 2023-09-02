@@ -1,3 +1,7 @@
+#![warn(missing_docs)]
+#![warn(clippy::missing_docs_in_private_items)]
+
+
 //! # fcaptcha
 //!
 //! An *experimental* alternative implementation of
@@ -17,10 +21,15 @@ pub use crate::verify_puzzle_result::{verify_puzzle_result, verify_puzzle_result
 #[cfg(feature = "web")]
 pub use crate::web::{build_puzzle_service, verify_puzzle_result_service};
 
+/// Implements building puzzles..
 pub mod build_puzzle;
-pub mod config;
-pub mod util;
+/// Implements verifying puzzle results.
 pub mod verify_puzzle_result;
+/// Implements configuration of the crate.
+pub mod config;
+/// Implements utility functionality.
+pub mod util;
 
+/// Serves the functionality over the web. Requires the `web` feature.
 #[cfg(feature = "web")]
 pub mod web;
