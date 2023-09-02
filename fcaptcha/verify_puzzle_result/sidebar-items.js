@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["VerifyPuzzleResultError"],"fn":["verify_puzzle_result","verify_puzzle_result_with"]};

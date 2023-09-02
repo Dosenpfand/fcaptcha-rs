@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BuildPuzzleError"],"fn":["build_puzzle","build_puzzle_with"]};

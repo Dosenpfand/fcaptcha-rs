@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["build_puzzle","config","util","verify_puzzle_result","web"]};
