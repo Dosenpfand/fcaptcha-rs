@@ -22,12 +22,12 @@ pub use crate::web::{build_puzzle_service, verify_puzzle_result_service};
 
 /// Implements building puzzles..
 pub mod build_puzzle;
-/// Implements verifying puzzle results.
-pub mod verify_puzzle_result;
 /// Implements configuration of the crate.
 pub mod config;
 /// Implements utility functionality.
 pub mod util;
+/// Implements verifying puzzle results.
+pub mod verify_puzzle_result;
 
 /// Serves the functionality over the web. Requires the `web` feature.
 #[cfg(feature = "web")]
