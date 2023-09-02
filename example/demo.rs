@@ -24,8 +24,11 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive();
         App::new()
             .wrap(cors)
-            .service(build_puzzle_service)
-            .service(verify_puzzle_result_service)
+            .route("/build-puzzle", web::get().to(build_puzzle_service))
+            .route(
+                "/verify-puzzle-result",
+                web::post().to(verify_puzzle_result_service),
+            )
             .service(demo_form)
             .service(index)
     })

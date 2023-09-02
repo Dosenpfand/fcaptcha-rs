@@ -1,7 +1,7 @@
 #![cfg(feature = "web")]
 
 use actix_web::http::StatusCode;
-use actix_web::{get, post, web, HttpRequest, Responder, Result};
+use actix_web::{web, HttpRequest, Responder, Result};
 use serde::{Deserialize, Serialize};
 use std::str;
 
@@ -51,7 +51,6 @@ lazy_static! {
 }
 
 /// A web service that serves puzzles to be solved.
-#[get("/build-puzzle")]
 pub async fn build_puzzle_service(
     req: HttpRequest,
     input: web::Query<BuildPuzzleServiceInput>,
@@ -80,7 +79,6 @@ pub async fn build_puzzle_service(
 }
 
 /// A web service that verifies solutions to a puzzle.
-#[post("/verify-puzzle-result")]
 pub async fn verify_puzzle_result_service(
     input: web::Json<VerifyPuzzleResultServiceInput>,
 ) -> Result<impl Responder> {

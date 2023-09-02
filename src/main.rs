@@ -1,5 +1,5 @@
 use actix_cors::Cors;
-use actix_web::{App, HttpServer};
+use actix_web::{App, HttpServer, web};
 use fcaptcha::config::get;
 use fcaptcha::web::{build_puzzle_service, verify_puzzle_result_service};
 
@@ -11,8 +11,11 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive();
         App::new()
             .wrap(cors)
-            .service(build_puzzle_service)
-            .service(verify_puzzle_result_service)
+            .route("/build-puzzle", web::get().to(build_puzzle_service))
+            .route(
+                "/verify-puzzle-result",
+                web::post().to(verify_puzzle_result_service),
+            )
     })
     .bind((get::<String>("BIND_ADDRESS"), get::<u16>("BIND_PORT")))?
     .run()
